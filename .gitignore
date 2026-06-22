@@ -1,0 +1,18 @@
+node_modules/
+dist/
+*.tsbuildinfo
+
+# 環境変数
+.env
+.env.local
+
+# take成果物（動画・音声・トレースは原則コミットしない／必要なものだけLFSで明示追跡）
+takes/
+out/
+*.webm
+*.wav
+*.mp4
+
+# OS / editor
+.DS_Store
+*.log

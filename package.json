@@ -1,0 +1,18 @@
+{
+  "name": "ai-vtuber-dream",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "description": "AIちゃんが奇妙なゲームの夢を見て観察を記録する、LLMエージェント駆動の縦型ショート生成基盤",
+  "engines": {
+    "node": ">=20"
+  },
+  "packageManager": "pnpm@9.12.0",
+  "scripts": {
+    "build": "pnpm -r build",
+    "typecheck": "pnpm -r typecheck"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.0"
+  }
+}
