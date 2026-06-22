@@ -17,6 +17,14 @@ export type {
   ClosureHint,
 } from './perception/schema.js';
 
+// 不変条件 #1 の機械的ガード（perceive() への生メカニクス数値混入検出・docs/07）
+export {
+  findRawMechanics,
+  assertNoRawMechanics,
+  RAW_MECHANIC_PATTERNS,
+  type RawMechanicViolation,
+} from './perception/no-raw-mechanics.js';
+
 // Play API 契約（docs/02）
 export type {
   DreamGame,
