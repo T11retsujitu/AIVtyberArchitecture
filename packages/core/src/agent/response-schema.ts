@@ -1,7 +1,7 @@
 /**
  * agent/response-schema.ts — AgentResponse（LLM 出力の構造化）
  *
- * 規範は docs/09-agent-loop-spec.md（次Wave）。AgentResponse の形そのものは
+ * 規範は docs/09-agent-loop-spec.md。AgentResponse の形そのものは
  * 不変条件 #3「LLM応答は JSON mode / structured output で強制」の実体。
  *
  * 注意：action が「今ターンの affordances に含まれるか」はここでは検証しない。

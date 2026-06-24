@@ -10,7 +10,7 @@
 | `06-anti-patterns.md` | 技術用語露出禁止など反面教師集 | ⬜ 次Wave |
 | `07-perception-schema.md` ★ | AIChanPerception・全ゲームの境界条件 | ✅ Phase 0 |
 | `08-memory-atom-design.md` | memory atom 設計 | ⬜ 次Wave |
-| `09-agent-loop-spec.md` | runAgentLoop / AgentResponse 仕様 | ⬜ 次Wave |
+| `09-agent-loop-spec.md` | runAgentLoop / AgentResponse 仕様 | ✅ |
 
 ## Phase 0 の完了ゲート
 
