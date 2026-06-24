@@ -16,6 +16,10 @@
 
 **別の人が `docs/00` `docs/02` `docs/07` を読むだけで、`praise-room` の Perception を独立に書ける**こと。
 
+→ 縦 1 本（perceive→llm→apply）を `packages/games/praise-room/` で実証済み。
+契約だけに依存する `runAgentLoop`（`packages/core/src/agent/`）と、鍵不要の決定論モック LLM で
+take を回せる：`pnpm test`／`node packages/games/praise-room/dist/demo.js [seed]`。
+
 ## 不変条件（→ `CLAUDE.md` と同一。崩すと全ゲーム波及）
 
 1. Perceptionに座標・ピクセル・タイマーを露出させない（描写で渡す）

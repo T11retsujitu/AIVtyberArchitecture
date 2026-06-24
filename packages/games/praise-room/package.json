@@ -1,5 +1,5 @@
 {
-  "name": "@dream/core",
+  "name": "@dream/praise-room",
   "version": "0.0.0",
   "type": "module",
   "main": "./src/index.ts",
@@ -8,20 +8,19 @@
     ".": {
       "types": "./src/index.ts",
       "import": "./dist/index.js"
-    },
-    "./testing": {
-      "types": "./src/testing/index.ts",
-      "import": "./dist/testing/index.js"
     }
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "build": "tsc"
+    "build": "tsc",
+    "demo": "node dist/demo.js",
+    "test": "node --test dist/"
   },
   "dependencies": {
-    "zod": "^3.23.8"
+    "@dream/core": "workspace:*"
   },
   "devDependencies": {
+    "@types/node": "^20.14.0",
     "typescript": "^5.6.0"
   }
 }

@@ -33,3 +33,19 @@ export {
   agentResponseJsonSchema,
   type AgentResponse,
 } from './agent/response-schema.js';
+
+// Agent ループ（docs/09）
+export { runAgentLoop } from './agent/agent-loop.js';
+export type { RunAgentLoopDeps, RunAgentLoopOptions } from './agent/agent-loop.js';
+export { createActionValidator } from './agent/action-validator.js';
+export { createPromptBuilder } from './agent/prompt-builder.js';
+export type {
+  LlmClient,
+  PromptBuilder,
+  PromptContext,
+  ActionValidator,
+  ChatMessage,
+  Reask,
+  ResolveResult,
+} from './agent/types.js';
+export type { DreamTrace, TraceTurn, EndReason } from './agent/trace.js';
