@@ -103,11 +103,14 @@ type ClosureHint = 'opening' | 'unfolding' | 'closing';
 
 ---
 
-## 整合の検証（次Wave以降のテスト観点）
+## 整合の検証
 
 - `affordances[].action ⊆ GameMeta.actionVocabulary`
-- `perceive()` の出力に**数値座標・px・秒**が文字列として混入していないこと（lint的チェックを `perception-implementer` skill で実施予定）
-- 同じ `seed` + 同じ action列 → 同じ `AIChanPerception` 列（決定論。`apply()` 側の不変条件と対）
+- `perceive()` の出力に**数値座標・px・秒**が文字列として混入していないこと
+  → `@dream/core` の `assertNoRawMechanics(perceive(state))` で機械的に検証する
+  （実体：`packages/core/src/perception/no-raw-mechanics.ts`）。各ゲームの perception テストの最終ゲートに置く。
+  ヒューリスティック（偽陽性回避優先）なので、新しい漏洩パターンを見つけたら `RAW_MECHANIC_PATTERNS` に追加する。
+- 同じ `seed` + 同じ action列 → 同じ `AIChanPerception` 列（決定論。`apply()` 側の不変条件と対。次Waveの `state.spec.ts` で検証）
 
 ---
 
