@@ -11,6 +11,7 @@
 | `07-perception-schema.md` ★ | AIChanPerception・全ゲームの境界条件 | ✅ Phase 0 |
 | `08-memory-atom-design.md` | memory atom 設計 | ⬜ 次Wave |
 | `09-agent-loop-spec.md` | runAgentLoop / AgentResponse 仕様 | ✅ |
+| `10-dev-setup-mac.md` | macOS 開発環境のセットアップ手順・準備事項（運用） | ✅ |
 
 ## Phase 0 の完了ゲート
 
