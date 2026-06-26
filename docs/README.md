@@ -11,6 +11,7 @@
 | `07-perception-schema.md` ★ | AIChanPerception・全ゲームの境界条件 | ✅ Phase 0 |
 | `08-memory-atom-design.md` | memory atom 設計 | ⬜ 次Wave |
 | `09-agent-loop-spec.md` | runAgentLoop / AgentResponse 仕様 | ✅ |
+| `10-setup.md` | 開発環境セットアップ（WSL含む・clone→`pnpm test`緑まで） | ✅ |
 
 ## Phase 0 の完了ゲート
 
