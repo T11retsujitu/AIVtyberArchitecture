@@ -1,0 +1,260 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>AIVtuber Shorts — レビュー＆現状ハブ</title>
+<!--
+  ブラウザで見る前提の「認知負荷を下げる」統合ビュー（自己完結・依存なし）。
+  内容の正は review/synthesis/*.md ＋ docs/。本ファイルはそれを一望するハブ。
+-->
+<style>
+  :root{
+    --bg:#0e1016; --panel:#161922; --panel2:#1c2130; --ink:#e7eaf0; --dim:#9aa2b1; --line:#28303f;
+    --p0:#ff6b6b; --p1:#ffb765; --low:#7c8598; --done:#54d18c; --open:#ff8f6b; --partial:#ffd166;
+    --accent:#8ab4ff; --accent2:#b28bff;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font-family:system-ui,"Hiragino Kaku Gothic ProN","Noto Sans JP",sans-serif;line-height:1.65;}
+  a{color:var(--accent);text-decoration:none} a:hover{text-decoration:underline}
+  code{background:#0b0d13;border:1px solid var(--line);border-radius:5px;padding:1px 6px;font-size:.86em;color:#cdd6e6}
+  .wrap{display:grid;grid-template-columns:230px 1fr;gap:0;max-width:1180px;margin:0 auto}
+  /* 左ナビ */
+  nav{position:sticky;top:0;align-self:start;height:100vh;overflow:auto;padding:22px 14px;border-right:1px solid var(--line)}
+  nav .brand{font-weight:700;font-size:15px;letter-spacing:.02em;margin-bottom:4px}
+  nav .date{color:var(--dim);font-size:12px;margin-bottom:16px}
+  nav a{display:block;color:var(--dim);padding:6px 10px;border-radius:8px;font-size:13.5px}
+  nav a:hover{background:var(--panel);color:var(--ink);text-decoration:none}
+  nav a.active{background:var(--panel2);color:var(--ink)}
+  main{padding:26px 30px 120px;min-width:0}
+  section{scroll-margin-top:16px;margin-bottom:40px}
+  h1{font-size:24px;margin:0 0 4px}
+  h2{font-size:19px;margin:0 0 14px;padding-bottom:8px;border-bottom:1px solid var(--line)}
+  h3{font-size:15.5px;margin:20px 0 8px;color:#cfd6e6}
+  p{margin:8px 0}
+  .lead{color:var(--dim);font-size:14px}
+  /* チップ */
+  .chip{display:inline-block;font-size:11px;font-weight:700;letter-spacing:.04em;padding:2px 9px;border-radius:999px;vertical-align:middle}
+  .c-p0{background:rgba(255,107,107,.16);color:var(--p0);border:1px solid rgba(255,107,107,.4)}
+  .c-p1{background:rgba(255,183,101,.14);color:var(--p1);border:1px solid rgba(255,183,101,.35)}
+  .c-low{background:rgba(124,133,152,.16);color:#aab3c4;border:1px solid rgba(124,133,152,.35)}
+  .c-done{background:rgba(84,209,140,.14);color:var(--done);border:1px solid rgba(84,209,140,.35)}
+  .c-open{background:rgba(255,143,107,.14);color:var(--open);border:1px solid rgba(255,143,107,.35)}
+  .c-partial{background:rgba(255,209,102,.13);color:var(--partial);border:1px solid rgba(255,209,102,.32)}
+  /* カード/グリッド */
+  .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin:14px 0}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 16px}
+  .card .k{color:var(--dim);font-size:12px;letter-spacing:.03em}
+  .card .v{font-size:22px;font-weight:700;margin-top:2px}
+  .card .v small{font-size:13px;color:var(--dim);font-weight:400}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px 18px;margin:12px 0}
+  .panel.hi{border-color:rgba(138,180,255,.5);box-shadow:0 0 0 1px rgba(138,180,255,.12) inset}
+  /* テーブル */
+  table{width:100%;border-collapse:collapse;font-size:13.5px;margin:10px 0}
+  th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+  th{color:var(--dim);font-weight:600;font-size:12px;letter-spacing:.03em}
+  td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
+  tr:hover td{background:rgba(255,255,255,.02)}
+  .bar{display:inline-block;height:7px;border-radius:4px;background:linear-gradient(90deg,var(--accent),var(--accent2));vertical-align:middle}
+  .barbg{display:inline-block;width:74px;height:7px;border-radius:4px;background:#222838;vertical-align:middle;margin-left:6px}
+  details{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:2px 14px;margin:8px 0}
+  details[open]{padding-bottom:12px}
+  summary{cursor:pointer;padding:10px 0;font-weight:600;font-size:14px;list-style:none}
+  summary::-webkit-details-marker{display:none}
+  summary::before{content:"▸ ";color:var(--dim)}
+  details[open] summary::before{content:"▾ "}
+  .muted{color:var(--dim)} .small{font-size:12.5px}
+  ul{margin:8px 0;padding-left:20px} li{margin:3px 0}
+  .quote{border-left:3px solid var(--accent2);padding:2px 0 2px 12px;color:#d6ddec;font-style:normal}
+  .legend{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0}
+  .pill{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:8px 12px;font-size:12.5px}
+  hr{border:none;border-top:1px solid var(--line);margin:22px 0}
+  @media(max-width:820px){ .wrap{grid-template-columns:1fr} nav{position:static;height:auto;border-right:none;border-bottom:1px solid var(--line);display:flex;flex-wrap:wrap;gap:4px} nav .brand,nav .date{width:100%} main{padding:20px 16px 80px} }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <nav id="toc">
+    <div class="brand">AIVtuber Shorts</div>
+    <div class="date">レビュー＆現状ハブ · 2026-07-02</div>
+    <a href="#summary">総括（1画面）</a>
+    <a href="#problems">現状の問題点</a>
+    <a href="#game">作るべきゲーム</a>
+    <a href="#timeline">実装タイムライン</a>
+    <a href="#modebplus">Mode B+ 実測（打率）</a>
+    <a href="#plan">打率改善プラン</a>
+    <a href="#links">リンク集</a>
+  </nav>
+
+  <main>
+    <section id="summary">
+      <h1>AIちゃんの夢ゲーム — レビュー＆現状ハブ</h1>
+      <p class="lead">「眠そうなAIちゃんが、毎晩ひとつ、へんな自作ゲームの夢を見る」25秒の縦型ショート。<code>review/</code> の3系統レビューをコードに突き合わせて統合し、現状と次の一手を一望する。</p>
+      <div class="cards">
+        <div class="card"><div class="k">制作基盤</div><div class="v">堅い <small>技術 8/10</small></div></div>
+        <div class="card"><div class="k">最優先 P0</div><div class="v">2件 <small>→ 実装済</small></div></div>
+        <div class="card"><div class="k">公開第1作</div><div class="v">押さないでボタン</div></div>
+        <div class="card"><div class="k">Mode B+ 打率</div><div class="v" style="color:var(--p0)">0 / 10 <small>直接投稿可</small></div></div>
+      </div>
+      <div class="panel hi">
+        <strong>いまどこ</strong> — 基盤（決定論・構造化出力・Perception境界・Mode B+）は3レビュー一致で高評価。弱いのは <em>初見フック・1本の面白さ・固定ファン化</em>。P0の2件（終端リアクション／冒頭フック）＋公開第1作＋Tier B＋実take選定まで完了。<br>
+        <strong>次の一手</strong> — Mode B+ 実測で判明した <span class="chip c-p0">打率0%</span> の根本原因（全takeが「見守り→満ち」に収束・press が0回）を潰す<a href="#plan">打率改善プラン</a>。
+      </div>
+      <div class="legend">
+        <span class="pill"><span class="chip c-p0">P0</span> 致命的・最優先</span>
+        <span class="pill"><span class="chip c-p1">P1</span> 重要</span>
+        <span class="pill"><span class="chip c-low">低</span> 先送り/既決</span>
+        <span class="pill"><span class="chip c-done">done</span> 実装済</span>
+        <span class="pill"><span class="chip c-partial">partial</span> 一部</span>
+        <span class="pill"><span class="chip c-open">open</span> 未着手</span>
+      </div>
+      <p class="small muted">出典の md：<a href="14-problems-synthesis.md">14-problems-synthesis.md</a>（問題点）／<a href="15-game-recommendation.md">15-game-recommendation.md</a>（ゲーム推奨）／<a href="../../docs/14-hit-rate-improvement.md">docs/14</a>（打率改善プラン）</p>
+    </section>
+
+    <section id="problems">
+      <h2>現状の問題点 <span class="muted small">（レビュー×コード実地検証）</span></h2>
+      <p>レビューの指摘のうち“本当に手を動かすべき”は <strong>P0の2つ</strong>。これはゲーム非依存の core/render 基盤。</p>
+
+      <h3><span class="chip c-p0">P0</span> 本当に致命的・完全に未着手だった2件</h3>
+      <details open>
+        <summary>① 終端リアクション欠如 — Shortsのオチが構造上録れない <span class="chip c-done">done</span></summary>
+        <p><code>runAgentLoop</code> は <code>apply</code> 直後の <code>isTerminal</code> で即 break し、終端 state を <code>perceive</code> せず締めのセリフを trace に積まない（<code>agent-loop.ts:104-108</code>）。全セリフは行動前 perception 由来で、<strong>結果への反応が構造上存在しない</strong>。praise-room で touch が満ちる報い（あたたかいものが返る）は誰も観測せず消える。</p>
+        <p class="small muted">出典：codexReview1 §2.1（致命的・最優先）／codexReview2／Antigravity #2 ｜ 対応：commit <code>ab8a010</code>（専用 ClosingResponse＋DreamTrace.closing）</p>
+      </details>
+      <details open>
+        <summary>② 冒頭フック未設計 — 初見離脱 <span class="chip c-done">done</span></summary>
+        <p>静かキャラで音声フックが弱いのに、hookカード/問い/タイトル生成の層が docs にもコードにも無かった。字幕は speech 限定（#5）なので表側に別レイヤが必要。</p>
+        <p class="small muted">出典：codexReview1 §2.2／codexReview2 優先#2／Antigravity #1 ｜ 対応：commit <code>ab8a010</code>（GameMeta.hook → DreamTrace.hook → 開幕カード）</p>
+      </details>
+
+      <h3><span class="chip c-p1">P1</span> 重要だが素材はある</h3>
+      <table>
+        <tr><th>#</th><th>問題</th><th>状態</th><th>要点</th></tr>
+        <tr><td>③</td><td>落差/反転ビートが構造要求でない＋公開ゲームが無い</td><td><span class="chip c-partial">partial</span></td><td>落差の素材は docs にあるが unfolding に「反転最低1回」要求が無い。公開映えするゲームが1本も無かった → <strong>押さないでボタンで着手</strong>（落差の構造要求化は未了）</td></tr>
+        <tr><td>④</td><td>セリフの単調・反復</td><td><span class="chip c-open">open</span></td><td>speech 多様化ルールが無い。Mode B+ 実測で「震えが止まった」反復・「ふぁ」多用として顕在化 → <a href="#plan">打率プラン</a>で対応</td></tr>
+        <tr><td>⑤</td><td>固定ファン基盤（記憶・定番・コメント反映）が皆無</td><td><span class="chip c-open">open</span></td><td>跨エピソード層は非存在。docs/11 が現waveの非目標。後続waveで別設計</td></tr>
+        <tr><td>⑥</td><td>公開レンダーに内部語（closure/endReason）が生表示で漏れる</td><td><span class="chip c-done">done</span></td><td>Tier A viewer の生表示を gloss 化（commit <code>ab8a010</code>）</td></tr>
+        <tr><td>⑦</td><td>Tier B（ゲーム固有レンダー）未実装＝映像競争力2/10</td><td><span class="chip c-done">done</span></td><td>docs/11 §2 が意図的に MVP 後回しにした順序。dont-press-button に実装（commit <code>d0e7f63</code>）</td></tr>
+      </table>
+
+      <h3><span class="chip c-low">低</span> レビューは叫ぶが優先度は低い（既決/先送り）</h3>
+      <ul class="small">
+        <li><strong>Tier B 未実装</strong> → docs/11 §2 が意図的に MVP 後回しと明記。穴ではなく順序（⑦で着手済）。</li>
+        <li><strong>take選定 UI のツール化</strong> → P2。Tier A viewer＋選定チェックリストで当面足りる。</li>
+        <li><strong>「静キャラ×静展開を分ける」</strong> → docs/01 が既に明文化済み（addressed）。新規対応不要。</li>
+      </ul>
+    </section>
+
+    <section id="game">
+      <h2>作るべきゲーム <span class="muted small">（判定パネル ＋ 推奨）</span></h2>
+      <p>~17 のゲーム案を3レンズ（フック/拡散・キャラ適合/固定ファン・アーキ適合）で独立採点。上位抜粋：</p>
+      <table>
+        <tr><th>候補</th><th class="num">フック</th><th class="num">キャラ</th><th class="num">アーキ</th><th>所見</th></tr>
+        <tr><td><strong>押さないでボタン</strong> <span class="chip c-done">採用</span></td><td class="num">9.5</td><td class="num">6</td><td class="num">9</td><td>3レンズを最もよく束ねる唯一の候補</td></tr>
+        <tr><td>こわれやすい光</td><td class="num">4</td><td class="num">8</td><td class="num">9</td><td>第2作（癒やし/満ち/Tier-B検証）</td></tr>
+        <tr><td>背後の影</td><td class="num">9</td><td class="num">5</td><td class="num">8</td><td>検証用後続（静×動の一般化）</td></tr>
+        <tr><td>褒める光（praise-room）</td><td class="num">4.5</td><td class="num">9</td><td class="num">9</td><td>既存・検証台に据え置き</td></tr>
+        <tr><td>嘘をつく信号機</td><td class="num">7.5</td><td class="num">6</td><td class="num">8</td><td>フック強め</td></tr>
+        <tr><td class="muted">コメントで育つ夢の庭</td><td class="num">5</td><td class="num">8</td><td class="num" style="color:var(--p0)">3</td><td class="muted">決定性を満たせず不採用</td></tr>
+        <tr><td class="muted">出口が引き止めてくる迷路</td><td class="num">5.5</td><td class="num">7</td><td class="num">5</td><td class="muted">座標必須で乱択破綻</td></tr>
+      </table>
+
+      <div class="panel hi">
+        <h3 style="margin-top:0">推奨（公開第1作）：押さないでボタン <span class="chip c-done">実装済</span></h3>
+        <p class="quote">「押さないで」と震えるボタンがひとつ。——あなたなら、押す？押さない？</p>
+        <p><strong>なぜ</strong>：フック9.5（1位）＋アーキ適合9（1位タイ）。弱点のキャラ適合(6)は praise-room(9) が検証台として分業。P0②フックを直撃し、押す衝動を懇願で裏切る <code>good→strange→bad</code> の落差が内在。docs/01 の失敗の型6種ほぼ全部を出せる稀有な題材。</p>
+        <table>
+          <tr><th>action</th><th>意味</th><th>閉じ方</th></tr>
+          <tr><td><code>press</code></td><td>おもいきって押す</td><td>型3こわれ（初手は怯み警告→2手目で破壊）</td></tr>
+          <tr><td><code>wait</code></td><td>そばで待つ</td><td>満ち（受容・唯一の非失敗）</td></tr>
+          <tr><td><code>hover</code></td><td>手をかざす</td><td>型4すれ違い</td></tr>
+          <tr><td><code>stepBack</code></td><td>離れる</td><td>型6ぐるり→型1手詰まり(deadend)</td></tr>
+          <tr><td><code>lookAway</code></td><td>目をそらす</td><td>型5見失い（salience vivid→faint）</td></tr>
+        </table>
+        <p class="small"><strong>締めの一言</strong>：満ち＝「……よかった。押さないまま、あなたは眠るんだね」／こわれ＝「あ……押しちゃった。やめてって、言ってたのに」<br>
+        <strong>不変条件</strong>：座標/秒/スコア露出なし・action 限定列挙・seed+action で決定的再生 ✓</p>
+      </div>
+      <details>
+        <summary>次点・不採用（クリックで展開）</summary>
+        <p><strong>第2作＝こわれやすい光</strong>：癒やし/ASMR/満ちを補完。<strong>検証用＝背後の影</strong>：静×動の横展開（ホラーは癒やしと逆で第1作にはしない）。</p>
+        <p class="muted"><strong>不採用</strong>：コメントで育つ夢の庭（決定性×）／迷路（座標必須）／忘れた猫・捨てる部屋（語彙肥大・抽象名詞の可視化難）／片付け机・世話生き物（多軸スカラーで乱択リスク）。</p>
+      </details>
+    </section>
+
+    <section id="timeline">
+      <h2>実装タイムライン <span class="muted small">（origin/main）</span></h2>
+      <table>
+        <tr><th>commit</th><th>内容</th><th>要点</th></tr>
+        <tr><td><code>ab8a010</code></td><td>終端リアクション＋冒頭フック（P0基盤）</td><td>ClosingResponse／DreamTrace.closing＆hook／viewer 開幕カード・締めフレーム・内部語 gloss 化。全 additive・doc-first</td></tr>
+        <tr><td><code>37bcb94</code></td><td>公開第1作「押さないでボタン」</td><td>5メータを質フィールドに射影・失敗の型6種到達・12テスト緑</td></tr>
+        <tr><td><code>d0e7f63</code></td><td>Tier B レンダー（震えるボタン）</td><td>renderFrame→SMIL SVG／replay 駆動／可視テキストは「おさないで」のみ・13テスト緑</td></tr>
+        <tr><td><code>e9365ad</code></td><td>Mode B+ バッチ生成ツール</td><td>NIM で複数 take を並列生成→takes/nim/index.json</td></tr>
+      </table>
+      <p class="small muted">検証：全パッケージ typecheck / test（82件）/ build 緑。</p>
+    </section>
+
+    <section id="modebplus">
+      <h2>Mode B+ 実測（実セリフの打率） <span class="muted small">NIM=qwen/qwen3.5-122b-a10b・10本</span></h2>
+      <div class="cards">
+        <div class="card"><div class="k">直接投稿可（打率）</div><div class="v" style="color:var(--p0)">0 / 10</div></div>
+        <div class="card"><div class="k">press が起きた回数</div><div class="v" style="color:var(--p0)">0</div></div>
+        <div class="card"><div class="k">最有力</div><div class="v">t10 <small>25/40 hold</small></div></div>
+      </div>
+      <p><strong>根本原因（今回いちばんの収穫）</strong>：10本すべてが「見守る→震えが鎮まる→満ち」の同一ビートに収束。題材の核（押す誘惑 vs 拒む震え）の緊張が一度も立たず、<code>press</code>/<code>stepBack</code> の決断が起きない。落差もこわれ(型3)も不発 → 10本が実質同じ話。<span class="muted">これはコード欠陥でなくキャラ×題材の相互作用の発見で、Mode B+ を回さねば見えなかった。</span></p>
+      <details>
+        <summary>10本ランキング（8軸合計/40・反対弁護つき）</summary>
+        <table>
+          <tr><th>take</th><th class="num">合計</th><th>判定</th><th>一言</th></tr>
+          <tr><td><strong>t10</strong></td><td class="num">25</td><td><span class="chip c-partial">hold</span></td><td>「触れないほうが、夢は長続きするかも」フック最良・破綻なし。投稿に一番近い</td></tr>
+          <tr><td>t05</td><td class="num">22</td><td><span class="chip c-partial">hold</span></td><td>「ただ、そばにいさせてほしいだけ」引用性◎。反復で単調</td></tr>
+          <tr><td>t02</td><td class="num">21</td><td><span class="chip c-partial">hold</span></td><td>入りは静か。3ターン全wait・「震えが止まった」二度言い</td></tr>
+          <tr><td>t03</td><td class="num">21</td><td><span class="chip c-partial">hold</span></td><td>「どうしようもない、不思議な約束みたいかも」が光る</td></tr>
+          <tr><td>t07 / t08</td><td class="num">21</td><td><span class="chip c-partial">hold</span></td><td>夢らしいズレはあるが締め反復</td></tr>
+          <tr><td>t04</td><td class="num">20</td><td><span class="chip c-partial">hold</span></td><td>「電気が漏れてる」メカ語寄り＋因果不整合</td></tr>
+          <tr><td class="muted">t06 / t09 / t01</td><td class="num">20/18/16</td><td><span class="chip c-open">reject</span></td><td class="muted">日本語破綻（「いたいくなって」「目を話す」）・反復過多</td></tr>
+        </table>
+      </details>
+      <p><strong>best pick = t10</strong>、タイトル案「<em>「押さないで」って震えるボタン、押さずに見守ったらどうなる？</em>」（Tier B は <code>out/*.tierB.html</code>）。</p>
+      <p class="small muted">他の癖：「震えが止まった」の反復（antiRepeat が8/10で最低）、「ふぁ」多用、closing が直前ターンの焼き直し、稀な日本語破綻。</p>
+    </section>
+
+    <section id="plan">
+      <h2>打率改善プラン <span class="chip c-done">docs/14（検証済）</span></h2>
+      <p>Mode B+ が見つけた <span class="chip c-p0">打率0%</span> の根本原因を潰す3本立て（design＋反対弁護レビュー済）。<strong>不変条件（数値非露出・限定 action・構造化出力・決定論）は崩さない。</strong>詳細は <a href="../../docs/14-hit-rate-improvement.md"><code>docs/14</code></a>。</p>
+      <div class="cards">
+        <div class="card"><div class="k">A. ゲーム側で落差</div><div class="v" style="font-size:15px">緊張を作る</div><p class="small muted" style="margin:6px 0 0">周囲が「押して」と囁く第2の気配＋見守り継続で震えが増幅。wait を満ちに直結させず press/stepBack の決断を誘発。</p></div>
+        <div class="card"><div class="k">B. prompt で反復・能動性</div><div class="v" style="font-size:15px">単調を崩す</div><p class="small muted" style="margin:6px 0 0">直近発話を渡し状態語の再利用禁止・「ふぁ」制限・語尾分散・能動 action を最低1回。契約は additive。</p></div>
+        <div class="card"><div class="k">C. 日本語ゲート＋再測</div><div class="v" style="font-size:15px">不良を弾く</div><p class="small muted" style="margin:6px 0 0">生成後に非文/誤変換を軽量検出し採点前に除外。A/B前後で同条件バッチ→打率を再測。</p></div>
+      </div>
+      <p><strong>実装順序</strong>：C（計器）→ A → 再測で press 発火を確認 → score-batch＋合否 → B（doc-first 承認後）。<span class="muted">効果側を確認してから計器を厚くする。</span></p>
+      <p><strong>合格基準（再測で同時に満たす）</strong>：直接投稿可 <strong>≥ 3/10</strong>／<strong>press 終端 ≥ 1/10</strong>（stepBack と分離した独立指標）／満ち占有 ≤ 6/10 かつ <strong>満ち率 &gt; 0</strong>（退避一択への付け替え防止）／endReason 種別 ≥ 3／antiRepeat 平均 ≥ 3.0（B の実効性ゲート・未達なら B 撤回）／suspect フラグ率 ≤ 1/10。</p>
+      <p class="small muted">※ 判定AIが「closingターンにactionがある＝矛盾」と誤認した指摘があったが、実際の締めビート <code>trace.closing</code> は action なしで正しいため、その改修案は不採用。</p>
+    </section>
+
+    <section id="links">
+      <h2>リンク集</h2>
+      <ul>
+        <li><strong>Tier A ビューア（汎用）</strong>：<code>packages/render/viewer/index.html</code> — 任意の DreamTrace(JSON) をドラッグ&ドロップ</li>
+        <li><strong>Tier B ビューア（震えるボタン）</strong>：<code>out/*.tierB.html</code> — <code>pnpm --filter @dream/dont-press-button render &lt;take.json|press|cycle&gt;</code> で生成</li>
+        <li><strong>実 take</strong>：<code>takes/nim/</code>（index.json ＋ 各 take）</li>
+        <li><strong>統合 md</strong>：<a href="14-problems-synthesis.md">14-problems-synthesis.md</a> ／ <a href="15-game-recommendation.md">15-game-recommendation.md</a></li>
+        <li><strong>規範 docs</strong>：<code>docs/00</code>(キャラ) · <code>docs/01</code>(失敗の型) · <code>docs/07</code>(境界) · <code>docs/09</code>(ループ) · <code>docs/11</code>(レンダー) · <code>docs/13</code>(LLM) · <code>docs/14</code>(打率プラン)</li>
+        <li><strong>元レビュー</strong>：<code>review/Antigravity/</code> · <code>review/codexReview1/</code> · <code>review/codexReview2/</code></li>
+      </ul>
+    </section>
+  </main>
+</div>
+
+<script>
+  // TOC アクティブ強調（スクロール連動）
+  const links=[...document.querySelectorAll('#toc a')];
+  const map=new Map(links.map(a=>[a.getAttribute('href').slice(1),a]));
+  const obs=new IntersectionObserver((es)=>{
+    es.forEach(e=>{ if(e.isIntersecting){ links.forEach(l=>l.classList.remove('active')); const a=map.get(e.target.id); if(a)a.classList.add('active'); } });
+  },{rootMargin:'-10% 0px -80% 0px',threshold:0});
+  document.querySelectorAll('main section').forEach(s=>obs.observe(s));
+</script>
+</body>
+</html>
