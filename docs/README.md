@@ -5,13 +5,14 @@
 | doc | 役割 | 状態 |
 |---|---|---|
 | `00-character-bible.md` ★ | 不変キャラ設定 + Decision Policy（毎ターン投入） | ✅ Phase 0 |
-| `01-dream-design-rules.md` | 25秒構造・失敗の型6種 | ⬜ 次Wave |
+| `01-dream-design-rules.md` | 25秒構造・失敗の型6種 | ✅ |
 | `02-play-api-contract.md` | DreamGame契約（core/play-api の規範） | ✅ Phase 0 |
 | `06-anti-patterns.md` | 技術用語露出禁止など反面教師集 | ⬜ 次Wave |
 | `07-perception-schema.md` ★ | AIChanPerception・全ゲームの境界条件 | ✅ Phase 0 |
 | `08-memory-atom-design.md` | memory atom 設計 | ⬜ 次Wave |
 | `09-agent-loop-spec.md` | runAgentLoop / AgentResponse 仕様 | ✅ |
 | `10-setup.md` | 開発環境セットアップ（WSL含む・clone→`pnpm test`緑まで） | ✅ |
+| `11-render-pipeline.md` | DreamTrace → 縦型ショート（画面・音声・字幕・録画）の設計 | ⬜ 次Wave（設計ドラフト） |
 
 ## Phase 0 の完了ゲート
 
