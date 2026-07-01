@@ -118,6 +118,23 @@ interface Recorder {
 
 ---
 
+## 5b. ArtifactManifest（`trace.provenance` の下流・docs/12 B）
+
+録画完了時に、この wave が **ArtifactManifest** を書き出す。`DreamTrace.provenance`（生成の素性・docs/09）を引き継ぎ、**下流でしか分からない値**を足す：voice モデル/パラメータ、`audioPaths`、`videoPath`、最終コスト。`runId` で trace と対応づける。
+
+```ts
+type ArtifactManifest = {
+  runId: string;                 // DreamTrace.provenance.runId と一致
+  trace: TraceProvenance;        // ゲーム/モデル/プロンプト/キャラ版・seed（docs/09）
+  voice: { model: string; params?: Record<string, unknown> };
+  audioPaths: string[];          // ターンごとの音声
+  videoPath?: string;            // 最終 mp4
+  tokenUsage?: number; estimatedCost?: number;
+};
+```
+
+> 実装は録画 wave。ループ時点では audio/video が未確定なので `DreamTrace` には入れない（provenance だけがループの責務・docs/12 B）。`tokenUsage`/`estimatedCost` は `LlmClient` 契約の拡張が要るため後回し（docs/12 B-4）。
+
 ## 6. 非目標（この wave でやらないこと）
 
 - `DreamGame` 契約・`AIChanPerception`・`AgentResponse` の変更（不変条件#4）。**新しい action も perception フィールドも足さない。**

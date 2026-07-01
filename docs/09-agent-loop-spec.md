@@ -121,6 +121,8 @@ type ResolveOutcome =
 ```ts
 type RunAgentLoopOptions = {
   seed: number;
+  /** trace に残す素性（provenance）。すべて任意・依存注入。未指定は 'unknown'（docs/12 B） */
+  provenance?: ProvenanceInput;
 };
 
 async function runAgentLoop<S, A extends string>(
@@ -167,6 +169,7 @@ type DreamTrace = {
   seed: number;
   endReason: 'terminal' | 'deadend' | 'maxTurns' | 'invalidAction';
   turns: TraceTurn[];
+  provenance: TraceProvenance;   // 再現に足る素性。常に付く（未指定は 'unknown'）。docs/12 B
   // endReason==='invalidAction' のときだけ付く不良 take のデバッグ素材（描画前に捨てる）
   failure?: {
     reason: 'invalidAction';
@@ -197,6 +200,7 @@ type TraceTurn = {
 
 - **ゲーム遷移は決定論**：同じ `seed` ＋同じ action 列 → 同じ state 列・同じ perception 列（docs/02・docs/07 の不変条件）。
 - **ループ全体は非決定論**：LLM の出力が毎回ぶれるため、`runAgentLoop` を 2 回回せば別 take になる（これが Mode B+ で複数 take を撮る前提）。
+- **provenance は決定論の対象外**：`runId`/`createdAt`/`model` 等は依存注入で、実 take では毎回変わる。core は時計/乱数を生成しないので、**未注入なら 'unknown' 定数で決定論は保たれる**。実 provenance を注入した trace を比較するときは、`provenance` を除いた play-content（`turns`/perception/state 列）で比較する（docs/12 B）。
 - **再現テストの観点**：`trace.turns.map(t => t.action)` を取り出し、`init(seed)` から `apply` で順に再生すると、`trace` と同じ state 列・perception 列が出ること（`tests/state.spec.ts`・次Wave）。LLM 部分はモックして action 列だけを与える。
 
 ---

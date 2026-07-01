@@ -42,12 +42,35 @@ export type TraceTurn = {
   events: GameEvent[];
 };
 
+/**
+ * take の素性（provenance・docs/12 B）。ゲーム面は seed+action 列で決定論再生できるが、
+ * LLM/音声の出力は非決定論なので「入力の素性」を残して後で再現できるようにする。
+ * runId/createdAt/model 等は core が生成せず**依存注入**する（決定論の足場を壊さないため）。
+ * 未指定のフィールドは 'unknown' で埋まる。audio/video の実パスは下流（docs/11 の ArtifactManifest）。
+ */
+export type TraceProvenance = {
+  /** この take の一意 ID（依存注入。未指定なら 'unknown'） */
+  runId: string;
+  /** 生成時刻 ISO8601（依存注入。core は時計を呼ばない。未指定なら 'unknown'） */
+  createdAt: string;
+  /** ゲーム実装の版・コミット（再現用・任意） */
+  gameVersion?: string;
+  gameCommitSha?: string;
+  /** LLM の素性（呼び出し側が構築した client の情報） */
+  model: { provider: string; name: string; params?: Record<string, unknown> };
+  /** プロンプト版・キャラBible版（docs/00） */
+  promptVersion: string;
+  characterBibleVersion: string;
+};
+
 export type DreamTrace = {
   gameId: string;
   title: string;
   seed: number;
   endReason: EndReason;
   turns: TraceTurn[];
+  /** 再現に足る素性。常に付く（未指定フィールドは 'unknown'）。docs/12 B */
+  provenance: TraceProvenance;
   /** endReason==='invalidAction' のときだけ付く不良 take のデバッグ素材 */
   failure?: TraceFailure;
 };

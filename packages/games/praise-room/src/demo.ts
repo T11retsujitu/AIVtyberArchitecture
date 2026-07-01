@@ -11,6 +11,7 @@
  * 本物の LLM に差し替えるときは createMockLlmClient を AnthropicLlmClient 等に置くだけ。
  */
 
+import { randomUUID } from 'node:crypto';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { runAgentLoop, createActionValidator, createPromptBuilder } from '@dream/core';
@@ -29,7 +30,18 @@ async function main(): Promise<void> {
       prompt: createPromptBuilder(),
       validator: createActionValidator(),
     },
-    { seed },
+    {
+      seed,
+      // provenance はアプリ側で注入する。core は時計/乱数を持たない（docs/12 B）。
+      provenance: {
+        runId: randomUUID(),
+        createdAt: new Date().toISOString(),
+        model: { provider: 'mock', name: 'deterministic-mock' },
+        promptVersion: 'prompt/0.1',
+        characterBibleVersion: 'character-bible/0.1',
+        gameVersion: '0.0.0', // TODO: package.json の version と揃える
+      },
+    },
   );
 
   console.log(`\n=== ${trace.title}（${trace.gameId}）seed=${trace.seed} ===`);

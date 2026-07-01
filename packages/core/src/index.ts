@@ -45,7 +45,7 @@ export {
 
 // Agent ループ（docs/09）
 export { runAgentLoop } from './agent/agent-loop.js';
-export type { RunAgentLoopDeps, RunAgentLoopOptions } from './agent/agent-loop.js';
+export type { RunAgentLoopDeps, RunAgentLoopOptions, ProvenanceInput } from './agent/agent-loop.js';
 export { createActionValidator } from './agent/action-validator.js';
 export { createPromptBuilder } from './agent/prompt-builder.js';
 export type {
@@ -57,4 +57,4 @@ export type {
   Reask,
   ResolveOutcome,
 } from './agent/types.js';
-export type { DreamTrace, TraceTurn, TraceFailure, EndReason } from './agent/trace.js';
+export type { DreamTrace, TraceTurn, TraceFailure, TraceProvenance, EndReason } from './agent/trace.js';

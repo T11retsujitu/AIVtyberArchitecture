@@ -13,7 +13,7 @@
 | `09-agent-loop-spec.md` | runAgentLoop / AgentResponse 仕様 | ✅ |
 | `10-setup.md` | 開発環境セットアップ（WSL含む・clone→`pnpm test`緑まで） | ✅ |
 | `11-render-pipeline.md` | DreamTrace → 縦型ショート（画面・音声・字幕・録画）の設計 | ⬜ 次Wave（設計ドラフト） |
-| `12-take-integrity-and-provenance.md` | 語彙外takeの失敗化(#5) / traceの素性記録(#3) | A:✅実装済 / B:⬜提案（未承認） |
+| `12-take-integrity-and-provenance.md` | 語彙外takeの失敗化(#5) / traceの素性記録(#3) | A:✅実装済 / B:✅実装済（B-4は後回し） |
 
 ## Phase 0 の完了ゲート
 

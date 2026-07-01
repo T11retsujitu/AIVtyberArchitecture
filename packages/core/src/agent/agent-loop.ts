@@ -8,7 +8,7 @@
 import type { DreamGame } from '../play-api/contract.js';
 import { agentResponseJsonSchema } from './response-schema.js';
 import type { ActionValidator, LlmClient, PromptBuilder, Reask } from './types.js';
-import type { DreamTrace, EndReason, TraceFailure, TraceTurn } from './trace.js';
+import type { DreamTrace, EndReason, TraceFailure, TraceProvenance, TraceTurn } from './trace.js';
 
 export type RunAgentLoopDeps = {
   llm: LlmClient;
@@ -16,9 +16,40 @@ export type RunAgentLoopDeps = {
   validator: ActionValidator;
 };
 
+/**
+ * trace の素性の入力（すべて任意・依存注入）。決定論を守るため core は
+ * runId/createdAt/乱数/時計を生成しない。未指定は 'unknown' で埋まる（docs/12 B）。
+ */
+export type ProvenanceInput = {
+  runId?: string;
+  createdAt?: string;
+  gameVersion?: string;
+  gameCommitSha?: string;
+  model?: { provider: string; name: string; params?: Record<string, unknown> };
+  promptVersion?: string;
+  characterBibleVersion?: string;
+};
+
 export type RunAgentLoopOptions = {
   seed: number;
+  /** trace に残す素性。省略時は 'unknown' で埋まる（docs/12 B） */
+  provenance?: ProvenanceInput;
 };
+
+/** ProvenanceInput → 完全な TraceProvenance（未指定を 'unknown' で埋める。定数なので決定論を壊さない） */
+function resolveProvenance(input: ProvenanceInput | undefined): TraceProvenance {
+  // 任意フィールド（gameVersion/gameCommitSha）は exactOptionalPropertyTypes のため
+  // undefined を素で入れず、値があるときだけキーを付ける。
+  return {
+    runId: input?.runId ?? 'unknown',
+    createdAt: input?.createdAt ?? 'unknown',
+    model: input?.model ?? { provider: 'unknown', name: 'unknown' },
+    promptVersion: input?.promptVersion ?? 'unknown',
+    characterBibleVersion: input?.characterBibleVersion ?? 'unknown',
+    ...(input?.gameVersion !== undefined && { gameVersion: input.gameVersion }),
+    ...(input?.gameCommitSha !== undefined && { gameCommitSha: input.gameCommitSha }),
+  };
+}
 
 export async function runAgentLoop<S, A extends string>(
   game: DreamGame<S, A>,
@@ -82,6 +113,7 @@ export async function runAgentLoop<S, A extends string>(
     seed: opts.seed,
     endReason,
     turns,
+    provenance: resolveProvenance(opts.provenance),
     ...(failure && { failure }),
   };
 }

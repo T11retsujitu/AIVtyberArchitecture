@@ -1,8 +1,8 @@
 # 12 — 提案：Take Integrity & Provenance（レビュー #5 / #3）
 
-> 状態：**A（#5）＝承認・実装済み（2026-07-01）**。docs/09 反映済み・core 実装済み・テスト緑。
-> **B（#3）＝⬜ 提案（未承認）**。本 doc は**不変条件 #4（DreamGame/AgentResponse/DreamTrace 契約の breaking change）** に該当する変更を含む。
-> B はまだ実装しない。承認後に docs（09/11）へ反映してからコードに落とす。
+> 状態：**A（#5）＝承認・実装済み（2026-07-01）**、**B（#3）＝承認・実装済み（2026-07-01）**。
+> どちらも docs（09/11）反映済み・core 実装済み・テスト緑。本 doc は不変条件 #4 に該当する契約変更（`EndReason`／`ResolveOutcome`／`DreamTrace` 拡張）を含み、人間承認の上で実装した。
+> 残タスクは B-4（`tokenUsage`/`cost` のための `LlmClient` 契約拡張）で、本番 LLM クライアント実装 Wave まで後回し。
 
 対象は 2026-07-01 の ChatGPT レビューの P0 のうち、契約変更を伴う 2 件（[[chatgpt-review-response-plan]]）：
 - **#5** フォールバック時に speech と action が食い違う → take を失敗扱いにする
@@ -98,11 +98,11 @@ speech: 「少し離れてみる……」   action: look（見つめる）
 ### 影響範囲
 `core`: `agent/trace.ts`・`agent/agent-loop.ts`（provenance 組み立て・clock/id 注入）・`agent/types.ts`（`RunAgentLoopOptions` か `deps` に clock/runId、LlmClient に usage）／docs: `09`・`11`。`mock-llm`・`demo` は provenance を渡すよう更新。
 
-### 決定点（要承認）
-- B-1. provenance を **`DreamTrace` に内包**（推奨・1ファイルで完結）／`trace.json` と別 `manifest.json` に分離。
-- B-2. `runId`/`createdAt` の供給：**opts で注入**（推奨・決定論テストと両立）／core が生成。
-- B-3. `characterBibleVersion`/`promptVersion` の供給元：prompt-builder が知っている値を `PromptContext` 経由で載せる（推奨）／`opts` で渡す。
-- B-4. `tokenUsage/cost` のために **`LlmClient` 契約を拡張するか**（推奨：後回し。まず provenance の版情報だけ入れ、usage は本番 LLM クライアント実装時に足す）。
+### 決定（確定・実装済み 2026-07-01）
+- B-1. provenance を **`DreamTrace` に内包**（常に付く必須フィールド。未指定は 'unknown'）。
+- B-2. `runId`/`createdAt`/`model` は **`opts.provenance` で依存注入**。core は時計/乱数を持たない。
+- B-3. 版情報も **`opts.provenance` に集約**（当初案の PromptContext 経由ではなく、provenance 入力を1箇所にまとめて凝集度と決定論テスト両立を優先）。将来 prompt-builder が版を所有するようにしてもよい。
+- B-4. `tokenUsage/cost` は **後回し**（`LlmClient` 契約拡張が要る。本番 LLM クライアント Wave で）。
 
 ---
 
