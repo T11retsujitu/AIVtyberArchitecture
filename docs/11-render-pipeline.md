@@ -51,6 +51,13 @@
 - Tier B を trace から駆動するには **リプレイ**する：`s = game.init(trace.seed)`、`trace.turns.map(t => t.action)` を順に `apply` して各ターンの `RawState` を再生し、`renderFrame` に渡す。trace に RawState を積まずにリッチ描画できる（原則#4を守る）。
 
 > 判断の既定：**まず Tier A で 1 本通す**。Tier B はゲーム表現の要求が出てから足す。
+>
+> **実装済みの例（dont-press-button）**：`packages/games/dont-press-button/src/render-frame.ts` に
+> `renderFrame(state): ButtonFrame`（RawState→絵の意味）＋`frameToSvg(frame): string`（SMIL で
+> 実際に震える 9:16 の SVG）＋`buildTierBHtml(scenes, meta)`（コマ送りビューア）を置く。
+> 駆動は `render-demo.ts` が seed+action 列を**リプレイ**して各 state を再生し renderFrame に渡す
+> （trace に RawState を積まない・原則#4）。可視テキストはダイジェティックな「おさないで」だけで、
+> 数値・座標・内部変数名は絵に出さない（原則#1/#5・テストでゲート）。
 
 ---
 
@@ -167,7 +174,8 @@ type ArtifactManifest = {
 2. **trace 出力**：`demo.ts` を `console.log` から `DreamTrace` の JSON 書き出しに拡張（`DREAM_TAKE_OUT_DIR`・`docs/10`）。ビューアの入力になる。
 3. **voice 配線**：`speech` → SBV2 → `AudioClip`（`SBV2_BASE_URL`）。尺配分（§5）の素材にする。
 4. **record**：ビューアをヘッドレスでキャプチャ → ffmpeg で 25s 縦mp4。
-5. 必要になったら **Tier B**：praise-room に `renderFrame(state)` を足し、リプレイ駆動で忠実盤面へ。
+5. 必要になったら **Tier B**：ゲームに `renderFrame(state)` を足し、リプレイ駆動で固有の絵へ
+   （実装済み：dont-press-button の `render-frame.ts` ＋ `render-demo.ts`。§2 参照）。
 
 ## 完了ゲートとの関係
 
