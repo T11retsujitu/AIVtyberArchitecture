@@ -9,6 +9,8 @@
 | `02-play-api-contract.md` | DreamGame契約（core/play-api の規範） | ✅ Phase 0 |
 | `03-game-design-playbook.md` | ゲーム起案の指針（期待ギャップ・情報非対称・起案テンプレ・判定パネル） | ✅ |
 | `04-perception-distortion-policy.md` ★ | 知覚の歪み（夢がどこまで嘘をつけるか）・perceive の意味論・全ゲーム境界 | ✅ |
+| `05-technique-catalog.md` | 技法カタログ目次（情報関係5類型・優先順位・25秒5ビート・変換テンプレ・外部ネタ帳） | ✅ |
+| `techniques/*.md` | 技法各論（1技法1ファイル：クィブル・自己成就型予言・サスペンス等 全11本） | ✅ |
 | `06-anti-patterns.md` | 技術用語露出禁止など反面教師集 | ⬜ 次Wave |
 | `07-perception-schema.md` ★ | AIChanPerception・全ゲームの境界条件 | ✅ Phase 0 |
 | `08-memory-atom-design.md` | memory atom 設計 | ⬜ 次Wave |

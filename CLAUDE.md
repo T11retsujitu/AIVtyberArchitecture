@@ -15,7 +15,7 @@ LLMエージェントがゲームを実プレイして**行動選択もセリフ
 - `docs/04-perception-distortion-policy.md` ★ — 知覚の歪み（夢がどこまで嘘をつけるか）。perceive 実装の意味論
 - `docs/07-perception-schema.md` ★ — AIChanPerception。全ゲームの境界条件
 
-ゲームを新しく**起案**するときは `docs/03-game-design-playbook.md`（期待ギャップ・起案テンプレ・判定パネル）を先に読む。
+ゲームを新しく**起案**するときは `docs/03-game-design-playbook.md`（期待ギャップ・ヘイト管理・起案テンプレ・判定パネル）と `docs/05-technique-catalog.md`（技法カタログ→`docs/techniques/`）を先に読む。
 
 ## 不変条件（崩すと全ゲームに波及する。変更は人間承認必須）
 
