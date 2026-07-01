@@ -45,6 +45,8 @@ NIM は JSON schema 強制を 2 経路サポートする。既定は `guided_jso
 いずれも渡すのは `agentResponseJsonSchema`（`response-schema.ts`。`additionalProperties:false`・全 required なので strict 可）。
 どちらもモデル依存で通り方に差があるため **config で切替可能**にし、比較で確かめる。
 
+> **実測メモ（2026-07 / integrate.api.nvidia.com の qwen3 系）**：`guided_json` は黙って無視され、`json_schema` は HTTP 500、`json_object` は推論モデル（qwen3.5-122b）で 0 トークンになる——つまり**サーバ側の構造化強制は当てにできない**。よって JSON 準拠は **prompt（`prompt-builder.ts`）が明示的に JSON オブジェクトを要求する**ことで担保し、`nvext.guided_json` は無害な no-op として残す。**不変条件#3 の実効ゲートは下記の返却フローの `AgentResponseSchema.parse`**（形が壊れていれば throw→再試行）。
+
 返却フロー：`content` 取得 → コードフェンス除去して `JSON.parse` → **`AgentResponseSchema.parse`（zod）** → 壊れていれば throw。
 transient（ネットワーク / 429 / 5xx / 素の malformed）は client 内で `maxRetries`（既定 2）だけ再試行 → なお駄目なら throw（＝その take は失敗。`docs/12 #5` の思想と一致）。**語彙外 action の reask はここではしない**（validator の責務・`docs/09`）。
 

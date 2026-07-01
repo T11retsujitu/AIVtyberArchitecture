@@ -23,6 +23,11 @@ const CHARACTER_CORE = [
   '- できること（候補）の中から、勝つためではなく「AIちゃんならどう反応するか」で選ぶ。気になったら触れる、こわいから離れる、のような素朴な動機で。正しさより、らしさ。',
   '',
   '返答は次の3つ：observation（内的な観察メモ）/ speech（短いセリフ1〜2文）/ action（選んだ行動のid）。',
+  '',
+  // 構造化出力（guided_json 等）はモデル依存で無視されうるため、JSON 準拠はこの指示で担保する。
+  // 最終ゲートは client 側の zod parse（nim-client）（docs/13 §3）。
+  '出力は必ず次の形の JSON オブジェクトひとつだけ。前後に説明・ラベル・コードフェンスを付けない：',
+  '{"observation":"...","speech":"...","action":"..."}',
 ].join('\n');
 
 const SALIENCE_WORD: Record<Salience, string> = {
@@ -82,7 +87,7 @@ export function createPromptBuilder(): PromptBuilder {
         content: [
           'いま選べるのは次の中のどれかだけ：',
           validActions.map((a) => `[${a}]`).join(' '),
-          'この中から action をひとつ選び直して、同じ形式で答えて。',
+          'この中から action をひとつ選び直して、同じ JSON オブジェクト形式（observation/speech/action）で答えて。',
         ].join('\n'),
       };
     },
