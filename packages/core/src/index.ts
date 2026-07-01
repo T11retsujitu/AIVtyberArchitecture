@@ -58,3 +58,7 @@ export type {
   ResolveOutcome,
 } from './agent/types.js';
 export type { DreamTrace, TraceTurn, TraceFailure, TraceProvenance, EndReason } from './agent/trace.js';
+
+// LLM プロバイダ実装（NVIDIA NIM・docs/13）。鍵/URL の局所化点。
+export { createNimLlmClient } from './agent/llm/nim-client.js';
+export type { NimClientConfig, StructuredOutputMode } from './agent/llm/nim-client.js';
