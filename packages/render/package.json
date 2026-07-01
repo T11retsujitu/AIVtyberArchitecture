@@ -1,0 +1,10 @@
+{
+  "name": "@dream/render",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "DreamTrace → 縦型ショートの Tier A ビューア（docs/11）。外部アセット・依存・ビルドなし。",
+  "scripts": {
+    "serve": "node serve.mjs"
+  }
+}

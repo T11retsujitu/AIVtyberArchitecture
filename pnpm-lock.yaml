@@ -41,6 +41,8 @@ importers:
         specifier: ^2.1.0
         version: 2.1.9(@types/node@20.19.43)
 
+  packages/render: {}
+
 packages:
 
   '@esbuild/aix-ppc64@0.21.5':

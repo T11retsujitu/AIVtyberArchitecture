@@ -1,0 +1,225 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Dream Viewer — Tier A（docs/11）</title>
+<!--
+  DreamTrace → 縦型ショート(9:16) を 1 ターンずつリプレイ描画する Tier A ビューア。
+  入力は perception の質的フィールド + response.speech だけ（contract 非依存・docs/11 §2）。
+  外部アセット・依存・ビルドなし。立ち絵/情景はプレースホルダ（アセットは後で codeX が差し替え）。
+  読み込み：この HTML に .json をドラッグ&ドロップ、または「読み込み」ボタン、または ?src=<traceのURL>。
+-->
+<style>
+  :root { --amber:#ffb765; --bad:#ff6b6b; --strange:#b28bff; --neutral:#9aa0a8; }
+  * { box-sizing: border-box; }
+  html,body { margin:0; height:100%; background:#07080c; color:#e9ecf1;
+    font-family: system-ui, "Hiragino Kaku Gothic ProN", "Noto Sans JP", sans-serif; }
+  #app { display:flex; flex-direction:column; align-items:center; gap:12px; padding:14px; min-height:100%; }
+
+  /* 9:16 ステージ（縦型ショートのセーフエリア） */
+  #stage { position:relative; aspect-ratio:9/16; height:min(84vh, 860px); max-width:96vw;
+    border-radius:18px; overflow:hidden; box-shadow:0 10px 40px rgba(0,0,0,.6);
+    background:#0b0f1a; transition:background 900ms ease; isolation:isolate; }
+  #stage.opening   { background:radial-gradient(120% 90% at 50% 30%, #131a2b 0%, #0b0f1a 70%); }
+  #stage.unfolding { background:radial-gradient(120% 90% at 50% 42%, #241826 0%, #120f1a 72%); }
+  #stage.closing   { background:radial-gradient(110% 80% at 50% 46%, #0d0b12 0%, #05070c 78%); }
+  #stage::after { /* vignette。closing で強まる */ content:""; position:absolute; inset:0; pointer-events:none;
+    box-shadow:inset 0 0 160px 40px rgba(0,0,0,.55); opacity:.5; transition:opacity 900ms; }
+  #stage.closing::after { opacity:.9; }
+
+  /* 情景サマリ（上部に淡く） */
+  .summary { position:absolute; top:4.5%; left:0; right:0; text-align:center; padding:0 10%;
+    font-size:15px; line-height:1.5; color:#c7ccd6; opacity:.75; text-shadow:0 1px 6px #000; }
+
+  /* 要素層：ref のハッシュで定位置、salience で存在感（座標は演出側が決める・docs/11 §3） */
+  .scene { position:absolute; inset:0; }
+  .el { position:absolute; transform:translate(-50%,-50%); text-align:center;
+    transition:opacity 700ms, filter 700ms; }
+  .blob { border-radius:50%; margin:0 auto;
+    background:radial-gradient(circle at 38% 34%, #fff6e2 0%, var(--amber) 42%, rgba(255,150,60,.15) 74%); }
+  .el.faint .blob { width:34px; height:34px; filter:blur(6px); }
+  .el.clear .blob { width:64px; height:64px; filter:blur(2px); }
+  .el.vivid .blob { width:108px; height:108px; box-shadow:0 0 46px 10px rgba(255,170,80,.5); }
+  .el.faint { opacity:.32; } .el.clear { opacity:.62; } .el.vivid { opacity:.98; }
+  .el .desc { margin-top:6px; font-size:11px; max-width:150px; color:#dfe3ea; opacity:.8;
+    text-shadow:0 1px 4px #000; }
+
+  /* フィードバックのパルス（valence を色で。数値は出さない） */
+  .flash { position:absolute; inset:0; opacity:0; pointer-events:none; mix-blend-mode:screen; }
+  .flash.pulse { animation:pulse 900ms ease-out; }
+  @keyframes pulse { 0%{opacity:0;} 18%{opacity:.5;} 100%{opacity:0;} }
+
+  /* AIちゃん立ち絵（プレースホルダ：後で codeX のアセットに差し替え） */
+  .aichan { position:absolute; left:50%; bottom:20%; transform:translateX(-50%);
+    width:150px; height:186px; border-radius:26px 26px 20px 20px;
+    background:linear-gradient(180deg,#3a3550,#221f30); border:1px solid rgba(255,255,255,.08);
+    box-shadow:0 8px 26px rgba(0,0,0,.5); display:flex; align-items:center; justify-content:center; }
+  .face { position:relative; width:96px; height:70px; }
+  .eye { position:absolute; top:22px; width:16px; height:16px; border-radius:50%;
+    background:#e9ecf1; transition:height 400ms, top 400ms; }
+  .eye.l { left:16px; } .eye.r { right:16px; }
+  .sleepy .eye { height:6px; top:30px; }              /* 眠そう既定 */
+  .closing .eye { height:4px; top:32px; }             /* 閉じ：さらに伏せ目 */
+  .mouth { position:absolute; bottom:8px; left:50%; transform:translateX(-50%);
+    width:20px; height:8px; border-bottom:2px solid #cdd2db; border-radius:0 0 12px 12px; }
+  .aichan .tag { position:absolute; bottom:-18px; left:50%; transform:translateX(-50%);
+    font-size:10px; color:#7c828e; white-space:nowrap; }
+
+  /* 字幕（speech）。ここに出るのは speech のみ（docs/00 §4） */
+  .subtitle { position:absolute; left:0; right:0; bottom:0; padding:26px 8% 30px; text-align:center;
+    font-size:20px; line-height:1.5; letter-spacing:.02em;
+    background:linear-gradient(180deg, transparent, rgba(0,0,0,.72) 42%); text-shadow:0 2px 10px #000; }
+
+  .closure-badge { position:absolute; top:3%; right:4%; font-size:11px; color:#8b91a0;
+    letter-spacing:.14em; text-transform:uppercase; }
+
+  /* 終端カード */
+  .endcard { position:absolute; inset:0; display:none; flex-direction:column; gap:6px;
+    align-items:center; justify-content:center; background:rgba(3,4,8,.55); backdrop-filter:blur(2px); }
+  .endcard.show { display:flex; }
+  .endcard .gloss { font-size:26px; letter-spacing:.05em; }
+  .endcard .reason { font-size:12px; color:#8b91a0; letter-spacing:.12em; text-transform:uppercase; }
+
+  /* 開発用コントロール（動画の表側ではない） */
+  .controls { display:flex; flex-wrap:wrap; gap:8px; align-items:center; justify-content:center;
+    max-width:96vw; font-size:13px; color:#c2c7d0; }
+  .controls button { background:#1a1e2a; color:#e9ecf1; border:1px solid #2b3040; border-radius:8px;
+    padding:6px 12px; cursor:pointer; }
+  .controls button:hover { background:#232838; }
+  .controls input[type=range] { width:200px; }
+  .meta { color:#7c828e; }
+  .hint { color:#6b7280; font-size:12px; text-align:center; max-width:520px; }
+  #drop-hint { position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+    text-align:center; padding:0 12%; color:#7c828e; font-size:14px; line-height:1.7; }
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="stage" class="opening">
+    <div class="summary" id="summary"></div>
+    <div class="scene" id="scene"></div>
+    <div class="flash" id="flash"></div>
+    <div class="aichan sleepy" id="aichan">
+      <div class="face"><span class="eye l"></span><span class="eye r"></span><span class="mouth"></span></div>
+      <span class="tag">AIちゃん（立ち絵プレースホルダ）</span>
+    </div>
+    <div class="subtitle" id="subtitle"></div>
+    <div class="closure-badge" id="closureBadge"></div>
+    <div class="endcard" id="endcard"><div class="gloss" id="endGloss"></div><div class="reason" id="endReason"></div></div>
+    <div id="drop-hint">DreamTrace の <b>.json</b> をここにドラッグ&ドロップ<br />（または下の「読み込み」／ URL に <code>?src=</code>）<br /><br />生成：<code>node packages/games/praise-room/dist/demo.js 42</code></div>
+  </div>
+
+  <div class="controls">
+    <button id="prev">‹ 前</button>
+    <button id="play">▶ 再生</button>
+    <button id="next">次 ›</button>
+    <input type="range" id="scrub" min="0" max="0" value="0" />
+    <span class="meta" id="counter">— / —</span>
+    <button id="loadBtn">読み込み</button>
+    <input type="file" id="file" accept="application/json,.json" hidden />
+    <label class="meta">1ターン <input type="number" id="dur" value="2500" min="400" step="100" style="width:64px"> ms</label>
+  </div>
+  <div class="hint" id="title"></div>
+  <div class="hint">Tier A：入力は perception の質・closure・feedback.valence と speech のみ。音声は次段（docs/11 §5）—尺は暫定の固定長。要素の位置は ref のハッシュで決定的。</div>
+</div>
+
+<script>
+const VALENCE = { good:'--amber', bad:'--bad', strange:'--strange', neutral:'--neutral' };
+const CLOSURE = { opening:'opening', unfolding:'unfolding', closing:'closing' };
+const END_GLOSS = { terminal:'閉じた', deadend:'手詰まり', maxTurns:'醒めた' };
+
+const el = (id) => document.getElementById(id);
+const stage=el('stage'), scene=el('scene'), summary=el('summary'), subtitle=el('subtitle'),
+      flash=el('flash'), aichan=el('aichan'), closureBadge=el('closureBadge'),
+      endcard=el('endcard'), endGloss=el('endGloss'), endReasonEl=el('endReason'),
+      scrub=el('scrub'), counter=el('counter'), titleEl=el('title'), dropHint=el('drop-hint');
+
+let trace=null, idx=0, playing=false, timer=null;
+
+// ref → 定位置（決定論。座標は演出側が決める・ゲーム座標は再導入しない）
+function hash(s){ let h=2166136261; for(let i=0;i<s.length;i++){ h^=s.charCodeAt(i); h=Math.imul(h,16777619);} return h>>>0; }
+function posFor(ref){ const h=hash(ref); return { x:12+(h%76), y:20+((h>>>9)%46) }; }
+
+function css(v){ return getComputedStyle(document.documentElement).getPropertyValue(v).trim(); }
+
+function renderTurn(i){
+  if(!trace) return;
+  i = Math.max(0, Math.min(i, trace.turns.length-1));
+  idx = i;
+  const t = trace.turns[i];
+  const p = t.perception;
+
+  stage.className = CLOSURE[p.closure] || 'opening';
+  aichan.className = 'aichan ' + (p.closure==='closing' ? 'closing' : 'sleepy');
+  closureBadge.textContent = p.closure;
+  summary.textContent = p.scene.summary;
+
+  // 要素
+  scene.innerHTML='';
+  for(const e of p.scene.elements){
+    const { x,y } = posFor(e.ref);
+    const d = document.createElement('div');
+    d.className = 'el ' + (e.salience||'clear');
+    d.style.left = x+'%'; d.style.top = y+'%';
+    d.innerHTML = '<div class="blob"></div><div class="desc"></div>';
+    d.querySelector('.desc').textContent = e.description;
+    scene.appendChild(d);
+  }
+
+  // 字幕（speech のみ）
+  subtitle.textContent = t.response?.speech ?? '';
+
+  // フィードバックのパルス（valence を色で）
+  const fb = p.feedback && p.feedback[p.feedback.length-1];
+  if(fb){
+    flash.style.background = 'radial-gradient(60% 50% at 50% 55%, '+css(VALENCE[fb.valence]||'--neutral')+' 0%, transparent 70%)';
+    flash.classList.remove('pulse'); void flash.offsetWidth; flash.classList.add('pulse');
+  }
+
+  // 終端カード（最後のターンのみ）
+  const last = i === trace.turns.length-1;
+  endcard.classList.toggle('show', last);
+  if(last){ endGloss.textContent = END_GLOSS[trace.endReason]||trace.endReason; endReasonEl.textContent = trace.endReason; }
+
+  scrub.value = i;
+  counter.textContent = (i+1)+' / '+trace.turns.length;
+}
+
+function step(delta){ pause(); renderTurn(idx+delta); }
+function play(){
+  if(!trace) return;
+  if(idx >= trace.turns.length-1) renderTurn(0);
+  playing=true; el('play').textContent='⏸ 停止';
+  const tick=()=>{
+    if(!playing) return;
+    if(idx >= trace.turns.length-1){ pause(); return; }
+    renderTurn(idx+1);
+    timer=setTimeout(tick, Number(el('dur').value)||2500);
+  };
+  timer=setTimeout(tick, Number(el('dur').value)||2500);
+}
+function pause(){ playing=false; clearTimeout(timer); el('play').textContent='▶ 再生'; }
+
+function loadTrace(obj){
+  if(!obj || !Array.isArray(obj.turns) || obj.turns.length===0){ alert('DreamTrace として読めません（turns が空）'); return; }
+  trace=obj; idx=0; scrub.max=obj.turns.length-1; dropHint.style.display='none';
+  titleEl.textContent = `${obj.title ?? ''}（${obj.gameId ?? '?'}）seed=${obj.seed ?? '?'} — ${obj.turns.length}ターン / ${obj.endReason}`;
+  renderTurn(0);
+}
+
+// 読み込み経路：?src= / ファイル選択 / ドラッグ&ドロップ
+el('prev').onclick=()=>step(-1);
+el('next').onclick=()=>step(1);
+el('play').onclick=()=>playing?pause():play();
+scrub.oninput=()=>{ pause(); renderTurn(Number(scrub.value)); };
+el('loadBtn').onclick=()=>el('file').click();
+el('file').onchange=(e)=>{ const f=e.target.files[0]; if(f) f.text().then(x=>loadTrace(JSON.parse(x))).catch(()=>alert('JSON 解析に失敗')); };
+['dragover','drop'].forEach(ev=>document.addEventListener(ev,e=>e.preventDefault()));
+document.addEventListener('drop',e=>{ const f=e.dataTransfer.files[0]; if(f) f.text().then(x=>loadTrace(JSON.parse(x))).catch(()=>alert('JSON 解析に失敗')); });
+
+const src=new URLSearchParams(location.search).get('src');
+if(src){ fetch(src).then(r=>r.json()).then(loadTrace).catch(()=>{ dropHint.innerHTML='?src の読み込みに失敗。ドラッグ&ドロップで読み込んでください。'; }); }
+</script>
+</body>
+</html>
