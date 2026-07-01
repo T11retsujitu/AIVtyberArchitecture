@@ -15,6 +15,7 @@
     "build": "tsc -p tsconfig.build.json",
     "demo": "node dist/demo.js",
     "render": "node dist/render-demo.js",
+    "takes": "node dist/takes-batch.js",
     "test": "vitest run"
   },
   "dependencies": {
