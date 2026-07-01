@@ -93,25 +93,23 @@ interface PromptBuilder {
 ```ts
 interface ActionValidator {
   /**
-   * r.action が affordances に含まれればそれを返す。
-   * 含まれなければ resolve 内で是正する（再試行 or フォールバック）。
-   * 返り値は必ず affordances 内の action（apply に渡して安全）。
+   * response.action が affordances 内ならそれを採用（ok:true）。
+   * 語彙外なら reask で有効な action 一覧を添えて再要求（既定 maxRetries=2）。
+   * 使い切ってもなお語彙外なら take 失敗（ok:false / invalidAction）。フォールバックしない。
    */
-  resolve(rawAction: string, affordances: Affordance[], retry: RetryHandle): Promise<ResolveResult>;
+  resolve(response: AgentResponse, affordances: Affordance[], reask: Reask): Promise<ResolveOutcome>;
 }
 
-type ResolveResult = {
-  action: string;       // affordances 内に必ず含まれる
-  corrected: boolean;   // LLM 初回 action が語彙外で是正したか
-  finalResponse: AgentResponse; // 再試行後の最終応答（observation/speech 込み）
-};
+type ResolveOutcome =
+  | { ok: true;  action: string; corrected: boolean; finalResponse: AgentResponse }
+  | { ok: false; reason: 'invalidAction'; attempts: number; lastResponse: AgentResponse };
 ```
 
-検証規則（docs/02・docs/07 と一致）：
+検証規則（docs/02・docs/07・docs/12 と一致）：
 
-- 正常系：`rawAction ∈ affordances.map(a => a.action)` → そのまま採用。
-- 語彙外：`retry` で LLM に**有効な action ラベル一覧**を添えて再要求する（既定 **2回**まで）。
-- 再試行を使い切ってもなお語彙外：**フォールバック** = `affordances[0].action`（決定論的）。`corrected: true` で記録し、その take は劣化マーク扱い（Mode B+ で人間が捨てられる）。
+- 正常系：`response.action ∈ affordances.map(a => a.action)` → そのまま採用（`ok:true`）。
+- 語彙外：`reask` で LLM に**有効な action ラベル一覧**を添えて再要求する（既定 **2回**まで）。**直れば採用**（`ok:true`・`corrected:true`＝軽い劣化）。
+- 再試行を使い切ってもなお語彙外：**take 失敗**（`ok:false`・`reason:'invalidAction'`）。フォールバックしない（#5）。ループが `endReason='invalidAction'` で閉じ、`DreamTrace.failure` に最後の無効応答を残す。その take は描画前に捨てる（Mode B+）。
 - `affordances` が**空**の場合は validator を呼ばない（ループ側で dead-end として先に終了。後述）。
 
 > `apply` に語彙外 action が届くのは「validator のバグ」（docs/02）。validator が `apply` の手前で必ず吸収するため、`apply` は語彙外を例外にしてよい。
@@ -142,15 +140,16 @@ async function runAgentLoop<S, A extends string>(
    2. **終端の早期判定**：`p.affordances` が空なら → `endReason = 'deadend'` で**ループを抜ける**（手詰まり＝夢の終わり方の一型。docs/07）。最後の観察は、直前ターンまでに `closure: 'closing'` で既に語られている前提（docs/00 §3「最後の観察を静かに残す」）。LLM は呼ばない。
    3. `messages = prompt.build(p, ctx)`。
    4. `r = llm.complete(messages, agentResponseJsonSchema)`。
-   5. `{ action, corrected, finalResponse } = validator.resolve(r.action, p.affordances, retry)`。
-   6. `{ state, events } = game.apply(s, action)`。`s = state`。
-   7. `trace.push({ turn, perception: p, response: finalResponse, action, corrected, events })`。
-   8. `game.isTerminal(s)` が true なら → `endReason = 'terminal'` で抜ける。
-   9. `turn += 1`。
+   5. `outcome = validator.resolve(r, p.affordances, reask)`。
+   6. **take 失敗の判定**：`outcome.ok === false` なら → `endReason = 'invalidAction'`、`DreamTrace.failure` に `{ turn, perception: p, lastResponse, attempts }` を記録し、`apply` せず**ループを抜ける**（#5・docs/12）。
+   7. `{ state, events } = game.apply(s, outcome.action)`。`s = state`。
+   8. `trace.push({ turn, perception: p, response: outcome.finalResponse, action: outcome.action, corrected: outcome.corrected, events })`。
+   9. `game.isTerminal(s)` が true なら → `endReason = 'terminal'` で抜ける。
+   10. `turn += 1`。
 3. ループが `turn === maxTurns` で尽きたら → `endReason = 'maxTurns'`。
 4. `DreamTrace` を返す。
 
-**終了条件は 3 つだけ**：`terminal`（ゲームが閉じた）／`deadend`（affordances 空）／`maxTurns`（安全弁）。
+**終了条件は 4 つ**：`terminal`（ゲームが閉じた）／`deadend`（affordances 空）／`maxTurns`（安全弁）／`invalidAction`（語彙外を使い切って take 失敗・#5）。
 
 - `closure` を `closing` にする責任は**ゲームの `perceive`** にある（残りターン感の表現）。ループは `closure` を強制しない（25秒構造の作り込みは `docs/01`）。
 - `maxTurns` は 25 秒に収めるための安全弁であって、演出上の終端ではない。`maxTurns` 打ち切りが常態化するゲームは perceive/isTerminal の設計ミス。
@@ -166,8 +165,16 @@ type DreamTrace = {
   gameId: string;          // game.meta.id
   title: string;           // game.meta.title
   seed: number;
-  endReason: 'terminal' | 'deadend' | 'maxTurns';
+  endReason: 'terminal' | 'deadend' | 'maxTurns' | 'invalidAction';
   turns: TraceTurn[];
+  // endReason==='invalidAction' のときだけ付く不良 take のデバッグ素材（描画前に捨てる）
+  failure?: {
+    reason: 'invalidAction';
+    turn: number;
+    perception: AIChanPerception;
+    lastResponse: AgentResponse;
+    attempts: number;
+  };
 };
 
 type TraceTurn = {

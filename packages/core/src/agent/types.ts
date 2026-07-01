@@ -43,24 +43,40 @@ export interface PromptBuilder {
 /** validator の再要求ハンドル。有効な action 一覧を添えて LLM に投げ直す */
 export type Reask = (validActions: string[]) => Promise<AgentResponse>;
 
-export type ResolveResult = {
-  /** affordances 内に必ず含まれる（apply に渡して安全） */
-  action: string;
-  /** LLM 初回 action が語彙外で是正したか（劣化マーク） */
-  corrected: boolean;
-  /** 再試行後の最終応答（observation/speech 込み） */
-  finalResponse: AgentResponse;
-};
+/**
+ * resolve の結果（判別可能ユニオン・docs/12）。
+ * - ok:true  … action は affordances 内（apply に渡して安全）。reask で直った場合は corrected:true。
+ * - ok:false … 再試行を使い切ってもなお語彙外。フォールバックせず take を失敗にする（#5）。
+ */
+export type ResolveOutcome =
+  | {
+      ok: true;
+      /** affordances 内に必ず含まれる */
+      action: string;
+      /** LLM 初回 action が語彙外で、reask で是正したか（軽い劣化マーク） */
+      corrected: boolean;
+      /** 採用した最終応答（observation/speech 込み） */
+      finalResponse: AgentResponse;
+    }
+  | {
+      ok: false;
+      reason: 'invalidAction';
+      /** 評価した応答の総数（初回 + reask 回数） */
+      attempts: number;
+      /** 最後に返ってきた（なお語彙外の）応答 */
+      lastResponse: AgentResponse;
+    };
 
 /**
  * action-validator — 語彙の妥当性と是正（docs/09）。
- * resolve は必ず affordances 内の action を返す。affordances は非空である前提
+ * ok:true なら action は affordances 内（apply に渡して安全）。affordances は非空である前提
  * （空のときはループが手前で dead-end 終了させ、resolve を呼ばない）。
+ * 再試行を使い切ってもなお語彙外なら ok:false（invalidAction）を返す。フォールバックしない。
  */
 export interface ActionValidator {
   resolve(
     response: AgentResponse,
     affordances: Affordance[],
     reask: Reask,
-  ): Promise<ResolveResult>;
+  ): Promise<ResolveOutcome>;
 }

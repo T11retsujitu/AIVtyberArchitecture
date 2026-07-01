@@ -55,6 +55,6 @@ export type {
   ActionValidator,
   ChatMessage,
   Reask,
-  ResolveResult,
+  ResolveOutcome,
 } from './agent/types.js';
-export type { DreamTrace, TraceTurn, EndReason } from './agent/trace.js';
+export type { DreamTrace, TraceTurn, TraceFailure, EndReason } from './agent/trace.js';

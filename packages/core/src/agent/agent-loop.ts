@@ -8,7 +8,7 @@
 import type { DreamGame } from '../play-api/contract.js';
 import { agentResponseJsonSchema } from './response-schema.js';
 import type { ActionValidator, LlmClient, PromptBuilder, Reask } from './types.js';
-import type { DreamTrace, EndReason, TraceTurn } from './trace.js';
+import type { DreamTrace, EndReason, TraceFailure, TraceTurn } from './trace.js';
 
 export type RunAgentLoopDeps = {
   llm: LlmClient;
@@ -31,6 +31,7 @@ export async function runAgentLoop<S, A extends string>(
   let state = game.init(opts.seed);
   const turns: TraceTurn[] = [];
   let endReason: EndReason = 'maxTurns';
+  let failure: TraceFailure | undefined;
 
   for (let turn = 0; turn < game.meta.maxTurns; turn++) {
     const perception = game.perceive(state);
@@ -47,12 +48,22 @@ export async function runAgentLoop<S, A extends string>(
     const reask: Reask = (validActions) =>
       llm.complete([...messages, prompt.correction(validActions)], agentResponseJsonSchema);
 
-    const { action, corrected, finalResponse } = await validator.resolve(
-      first,
-      perception.affordances,
-      reask,
-    );
+    const outcome = await validator.resolve(first, perception.affordances, reask);
 
+    // 語彙外を使い切った → フォールバックせず take を失敗にする（#5・docs/12）。
+    if (!outcome.ok) {
+      endReason = 'invalidAction';
+      failure = {
+        reason: outcome.reason,
+        turn,
+        perception,
+        lastResponse: outcome.lastResponse,
+        attempts: outcome.attempts,
+      };
+      break;
+    }
+
+    const { action, corrected, finalResponse } = outcome;
     // action は validator が affordances 内であることを保証している。
     const { state: nextState, events } = game.apply(state, action as A);
     state = nextState;
@@ -71,5 +82,6 @@ export async function runAgentLoop<S, A extends string>(
     seed: opts.seed,
     endReason,
     turns,
+    ...(failure && { failure }),
   };
 }

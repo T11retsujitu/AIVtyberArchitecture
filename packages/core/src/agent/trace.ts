@@ -9,7 +9,24 @@ import type { AIChanPerception } from '../perception/schema.js';
 import type { GameEvent } from '../play-api/contract.js';
 import type { AgentResponse } from './response-schema.js';
 
-export type EndReason = 'terminal' | 'deadend' | 'maxTurns';
+export type EndReason = 'terminal' | 'deadend' | 'maxTurns' | 'invalidAction';
+
+/**
+ * take 失敗の記録（endReason==='invalidAction' のときだけ付く）。
+ * 語彙外 action を再試行で直せず、apply できないまま閉じた不良 take のデバッグ素材。
+ * 描画前に捨てる前提（Mode B+）。turns には積まない（TraceTurn は valid action 前提）。
+ */
+export type TraceFailure = {
+  reason: 'invalidAction';
+  /** 失敗したターン番号 */
+  turn: number;
+  /** そのターン AIちゃんが見たもの */
+  perception: AIChanPerception;
+  /** 最後に返ってきた（なお語彙外の）応答 */
+  lastResponse: AgentResponse;
+  /** 評価した応答の総数（初回 + reask 回数） */
+  attempts: number;
+};
 
 export type TraceTurn = {
   turn: number;
@@ -31,4 +48,6 @@ export type DreamTrace = {
   seed: number;
   endReason: EndReason;
   turns: TraceTurn[];
+  /** endReason==='invalidAction' のときだけ付く不良 take のデバッグ素材 */
+  failure?: TraceFailure;
 };
