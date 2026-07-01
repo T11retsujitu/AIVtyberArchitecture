@@ -68,6 +68,25 @@ describe('praise-room: 決定論', () => {
   });
 });
 
+describe('praise-room: 終端理由（#4 ターン上限は runAgentLoop の担当）', () => {
+  it('ターン上限に達しただけでは isTerminal にならない（安全弁はループが管理）', () => {
+    const late = { ...praiseRoom.init(0), turn: praiseRoom.meta.maxTurns + 5 };
+    expect(praiseRoom.isTerminal(late)).toBe(false);
+  });
+
+  it('受容も解消もしないと maxTurns で閉じる（terminal に潰れない）', async () => {
+    // 常に look を選ぶ客。closeness は上がるが warmth/withdrawn は動かない → 終端条件に達しない。
+    const alwaysLook: LlmClient = {
+      async complete(): Promise<AgentResponse> {
+        return { observation: 'x', speech: 'すこし、見てみる。', action: 'look' };
+      },
+    };
+    const trace = await runAgentLoop(praiseRoom, deps(alwaysLook), { seed: 0 });
+    expect(trace.endReason).toBe('maxTurns');
+    expect(trace.turns.length).toBe(praiseRoom.meta.maxTurns);
+  });
+});
+
 describe('praise-room: action-validator', () => {
   it('語彙外 action は是正フォールバックされ、apply に語彙外は届かない', async () => {
     // 常に語彙外を返す意地悪クライアント。reask しても直らない → フォールバック。

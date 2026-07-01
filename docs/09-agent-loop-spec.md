@@ -123,7 +123,6 @@ type ResolveResult = {
 ```ts
 type RunAgentLoopOptions = {
   seed: number;
-  maxRetries?: number;   // validator 是正の LLM 再試行回数（既定 2）
 };
 
 async function runAgentLoop<S, A extends string>(
@@ -132,6 +131,8 @@ async function runAgentLoop<S, A extends string>(
   opts: RunAgentLoopOptions,
 ): Promise<DreamTrace>;
 ```
+
+> 再試行回数（既定 2）は `RunAgentLoopOptions` ではなく **`createActionValidator(maxRetries)`** で設定する（retry は validator の責務。実体 `agent/action-validator.ts`）。ループ本体は retry 回数を知らない。
 
 手順（`docs/02` 呼び出し規約の具体化）：
 
