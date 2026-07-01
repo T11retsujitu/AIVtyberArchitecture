@@ -12,7 +12,10 @@ LLMエージェントがゲームを実プレイして**行動選択もセリフ
 
 - `docs/00-character-bible.md` ★ — 不変キャラ設定 + Decision Policy
 - `docs/02-play-api-contract.md` — DreamGame契約（`packages/core/src/play-api/contract.ts` の規範）
+- `docs/04-perception-distortion-policy.md` ★ — 知覚の歪み（夢がどこまで嘘をつけるか）。perceive 実装の意味論
 - `docs/07-perception-schema.md` ★ — AIChanPerception。全ゲームの境界条件
+
+ゲームを新しく**起案**するときは `docs/03-game-design-playbook.md`（期待ギャップ・起案テンプレ・判定パネル）を先に読む。
 
 ## 不変条件（崩すと全ゲームに波及する。変更は人間承認必須）
 

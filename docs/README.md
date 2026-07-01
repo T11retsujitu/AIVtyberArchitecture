@@ -7,6 +7,8 @@
 | `00-character-bible.md` ★ | 不変キャラ設定 + Decision Policy（毎ターン投入） | ✅ Phase 0 |
 | `01-dream-design-rules.md` | 25秒構造・失敗の型6種 | ✅ |
 | `02-play-api-contract.md` | DreamGame契約（core/play-api の規範） | ✅ Phase 0 |
+| `03-game-design-playbook.md` | ゲーム起案の指針（期待ギャップ・情報非対称・起案テンプレ・判定パネル） | ✅ |
+| `04-perception-distortion-policy.md` ★ | 知覚の歪み（夢がどこまで嘘をつけるか）・perceive の意味論・全ゲーム境界 | ✅ |
 | `06-anti-patterns.md` | 技術用語露出禁止など反面教師集 | ⬜ 次Wave |
 | `07-perception-schema.md` ★ | AIChanPerception・全ゲームの境界条件 | ✅ Phase 0 |
 | `08-memory-atom-design.md` | memory atom 設計 | ⬜ 次Wave |
@@ -14,6 +16,8 @@
 | `10-setup.md` | 開発環境セットアップ（WSL含む・clone→`pnpm test`緑まで） | ✅ |
 | `11-render-pipeline.md` | DreamTrace → 縦型ショート（画面・音声・字幕・録画）の設計 | ⬜ 次Wave（設計ドラフト） |
 | `12-take-integrity-and-provenance.md` | 語彙外takeの失敗化(#5) / traceの素性記録(#3) | A:✅実装済 / B:✅実装済（B-4は後回し） |
+| `13-llm-provider.md` | LlmClient の具象プロバイダ（現在 NVIDIA NIM）・構造化出力・bench | ✅ 実装済 |
+| `14-hit-rate-improvement.md` | 打率改善プラン（実 take 0/10 の原因潰し・A/B/C ワークストリーム） | ⬜ 計画 |
 
 ## Phase 0 の完了ゲート
 
