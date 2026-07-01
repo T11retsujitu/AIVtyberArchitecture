@@ -12,6 +12,7 @@ import {
   createActionValidator,
   createPromptBuilder,
   findRawMechanics,
+  assertNoRawMechanicsText,
   type AgentResponse,
   type LlmClient,
 } from '@dream/core';
@@ -24,8 +25,15 @@ function deps(llm: LlmClient) {
   return { llm, prompt: createPromptBuilder(), validator: createActionValidator() };
 }
 
+describe('praise-room: メタ（公開フック・docs/11）', () => {
+  it('meta.hook は非空で、生メカニクス数値を含まない（不変条件 #1）', () => {
+    expect(praiseRoom.meta.hook).toBeTruthy();
+    expect(() => assertNoRawMechanicsText(praiseRoom.meta.hook!, 'hook')).not.toThrow();
+  });
+});
+
 describe('praise-room: 縦通し（perceive→llm→apply）', () => {
-  it('mock で 1 take を回し、受容で閉じる', async () => {
+  it('mock で 1 take を回し、受容で閉じる（締めの一言も付く）', async () => {
     const trace = await runAgentLoop(praiseRoom, deps(createMockLlmClient()), { seed: 0 });
 
     expect(trace.turns.length).toBeGreaterThan(0);
@@ -35,6 +43,11 @@ describe('praise-room: 縦通し（perceive→llm→apply）', () => {
       expect(t.response.speech.length).toBeGreaterThan(0);
       expect(t.action).toBe(t.response.action);
     }
+    // 終端リアクション：夢が閉じたあとの締めの一言が付く（docs/09 Closing Beat）
+    expect(trace.closing).toBeDefined();
+    expect(trace.closing!.response.speech.length).toBeGreaterThan(0);
+    // hook が trace へ複写されている
+    expect(trace.hook).toBe(praiseRoom.meta.hook);
   });
 
   it('全ターンの perception が不変条件#1 ガードを通る（生メカニクス数値なし）', async () => {

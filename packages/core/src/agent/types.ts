@@ -6,8 +6,11 @@
  */
 
 import type { AIChanPerception, Affordance } from '../perception/schema.js';
-import type { AgentResponse } from './response-schema.js';
-import type { agentResponseJsonSchema } from './response-schema.js';
+import type { AgentResponse, ClosingResponse } from './response-schema.js';
+import type { agentResponseJsonSchema, closingResponseJsonSchema } from './response-schema.js';
+
+/** 締めビートを出す終端理由（docs/09 Closing Beat）。invalidAction は含まない（不良 take は締めない） */
+export type ClosingReason = 'terminal' | 'deadend' | 'maxTurns';
 
 /** プロバイダ非依存のメッセージ表現 */
 export type ChatMessage = {
@@ -31,6 +34,16 @@ export interface LlmClient {
     messages: ChatMessage[],
     schema: typeof agentResponseJsonSchema,
   ): Promise<AgentResponse>;
+  /**
+   * 終端リアクション（docs/09 Closing Beat）を生成する **任意** メソッド。
+   * 夢が閉じたあとの締めのひとこと（observation ＋ speech、action なし）を構造化強制で返す。
+   * オプショナルにしてあるのは、complete だけを実装した既存クライアント（テストのインライン
+   * リテラル等）を壊さないため。runAgentLoop は typeof で存在を確認し、未実装なら締めを省く。
+   */
+  closing?(
+    messages: ChatMessage[],
+    schema: typeof closingResponseJsonSchema,
+  ): Promise<ClosingResponse>;
 }
 
 /** prompt-builder — docs/00 §1–4 ＋ perception を messages に組む */
@@ -38,6 +51,11 @@ export interface PromptBuilder {
   build(perception: AIChanPerception, ctx: PromptContext): ChatMessage[];
   /** 語彙外 action を是正するための追い投げメッセージ */
   correction(validActions: string[]): ChatMessage;
+  /**
+   * 締めビート用の messages を組む（docs/09 Closing Beat）。行動選択を促さず、
+   * 「夢はもう閉じた。最後に見えたものを静かにひとこと」だけを求める。reason で締めのトーンを分ける。
+   */
+  buildClosing(perception: AIChanPerception, ctx: PromptContext, reason: ClosingReason): ChatMessage[];
 }
 
 /** validator の再要求ハンドル。有効な action 一覧を添えて LLM に投げ直す */

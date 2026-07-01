@@ -7,7 +7,7 @@
 
 import { describe, it, expect, vi } from 'vitest';
 import { createNimLlmClient, type NimClientConfig } from './nim-client.js';
-import { agentResponseJsonSchema } from '../response-schema.js';
+import { agentResponseJsonSchema, closingResponseJsonSchema } from '../response-schema.js';
 import type { ChatMessage } from '../types.js';
 
 type FetchImpl = NonNullable<NimClientConfig['fetchImpl']>;
@@ -105,5 +105,42 @@ describe('createNimLlmClient', () => {
     const bad = JSON.stringify({ ...VALID, extra: 'nope' });
     const client = createNimLlmClient({ ...base(mockFetch(async () => ok(bad))), maxRetries: 0 });
     await expect(client.complete(MESSAGES, agentResponseJsonSchema)).rejects.toThrow(/AgentResponse/);
+  });
+});
+
+describe('createNimLlmClient: closing（終端リアクション・docs/09）', () => {
+  const CLOSING = { observation: '締めの観察', speech: '……ここで、閉じるんだね。' };
+
+  it('closing_response の schema を焼き、observation/speech をパースして返す', async () => {
+    const fetchImpl = mockFetch(async () => ok(JSON.stringify(CLOSING)));
+    const client = createNimLlmClient(base(fetchImpl));
+
+    const res = await client.closing!(MESSAGES, closingResponseJsonSchema);
+    expect(res).toEqual(CLOSING);
+
+    const body = JSON.parse(String((fetchImpl.mock.calls[0]![1] as RequestInit).body));
+    expect(body.nvext.guided_json).toEqual(closingResponseJsonSchema);
+  });
+
+  it('json_schema モードでは name=closing_response を焼く', async () => {
+    const fetchImpl = mockFetch(async () => ok(JSON.stringify(CLOSING)));
+    const client = createNimLlmClient({ ...base(fetchImpl), structuredOutput: 'json_schema' });
+    await client.closing!(MESSAGES, closingResponseJsonSchema);
+    const body = JSON.parse(String((fetchImpl.mock.calls[0]![1] as RequestInit).body));
+    expect(body.response_format.json_schema.name).toBe('closing_response');
+  });
+
+  it('余剰 action は strip して observation/speech だけ返す（best-effort・非 strict）', async () => {
+    const withAction = JSON.stringify({ ...CLOSING, action: 'go' });
+    const client = createNimLlmClient({ ...base(mockFetch(async () => ok(withAction))), maxRetries: 0 });
+    const res = await client.closing!(MESSAGES, closingResponseJsonSchema);
+    expect(res).toEqual(CLOSING);
+    expect('action' in res).toBe(false);
+  });
+
+  it('必須欠落（speech なし）は弾く', async () => {
+    const bad = JSON.stringify({ observation: 'x' });
+    const client = createNimLlmClient({ ...base(mockFetch(async () => ok(bad))), maxRetries: 0 });
+    await expect(client.closing!(MESSAGES, closingResponseJsonSchema)).rejects.toThrow(/ClosingResponse/);
   });
 });

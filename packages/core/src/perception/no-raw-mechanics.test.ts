@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import type { AIChanPerception } from './schema.js';
-import { assertNoRawMechanics, findRawMechanics } from './no-raw-mechanics.js';
+import {
+  assertNoRawMechanics,
+  assertNoRawMechanicsText,
+  findRawMechanics,
+  findRawMechanicsInText,
+} from './no-raw-mechanics.js';
 
 /** 合格すべき描写のみで構成した perception（praise-room 想定） */
 const clean: AIChanPerception = {
@@ -62,5 +67,21 @@ describe('assertNoRawMechanics', () => {
       feedback: [{ description: 'remaining=12 だった', valence: 'strange' }],
     };
     expect(() => assertNoRawMechanics(p)).toThrow(/不変条件 #1/);
+  });
+});
+
+describe('assertNoRawMechanicsText（GameMeta.hook 等の公開文言ゲート）', () => {
+  it('クリーンなフック文言は通す', () => {
+    expect(() => assertNoRawMechanicsText('褒めてくる光を、AIちゃんは受け入れられるのか。', 'hook')).not.toThrow();
+  });
+
+  it.each([
+    ['座標', '(3,4) の光を追う'],
+    ['ピクセル', '12px 右にずれる夢'],
+    ['秒', 'あと3秒の夢'],
+    ['エンジン変数', 'score=80 の夢'],
+  ])('%s を含むフック文言を弾く', (_name, hook) => {
+    expect(() => assertNoRawMechanicsText(hook, 'hook')).toThrow(/不変条件 #1/);
+    expect(findRawMechanicsInText(hook).length).toBeGreaterThan(0);
   });
 });

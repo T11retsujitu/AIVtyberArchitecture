@@ -19,6 +19,14 @@ export type GameMeta<A extends string = string> = {
   actionVocabulary: readonly A[];
   /** 25秒に収まるターン上限。ループの安全弁 */
   maxTurns: number;
+  /**
+   * 公開用の冒頭フック（任意・人間著述）。Shorts の 0〜2 秒で「何を見る夢か」を伝える一文
+   * （例「「押さないで」と、ボタンがふるえている。」）。runAgentLoop が DreamTrace.hook へ
+   * そのまま複写し、映像フロー（docs/11）が開幕カードに使う。**perception ではない**ので
+   * AIちゃん（LLM）には渡らない。メカニクス語・技術用語を含めない（不変条件 #1/#5・
+   * assertNoRawMechanicsText でゲート）。
+   */
+  hook?: string;
 };
 
 /** apply() の 1 ターンで起きたこと。perceive 側で feedback の描写に変換される素材 */

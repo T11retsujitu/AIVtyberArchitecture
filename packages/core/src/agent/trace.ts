@@ -7,7 +7,7 @@
 
 import type { AIChanPerception } from '../perception/schema.js';
 import type { GameEvent } from '../play-api/contract.js';
-import type { AgentResponse } from './response-schema.js';
+import type { AgentResponse, ClosingResponse } from './response-schema.js';
 
 export type EndReason = 'terminal' | 'deadend' | 'maxTurns' | 'invalidAction';
 
@@ -63,6 +63,21 @@ export type TraceProvenance = {
   characterBibleVersion: string;
 };
 
+/**
+ * 終端リアクション（Closing Beat・docs/09）。夢が閉じたあと、最後の state を perceive し直して
+ * 生成する「行動なしの締めのひとこと」。**apply を呼ばず turns にも積まない**ので、
+ * trace.turns.map(t => t.action) のリプレイ決定論には一切影響しない（非決定論なのは speech だけ）。
+ * endReason が terminal/deadend/maxTurns のときに best-effort で付く（invalidAction には付かない）。
+ * LlmClient.closing 未実装 or 生成失敗のときは undefined（締めは garnish なので take は捨てない）。
+ * render（docs/11）は turns の後に closing.response.speech を最後の字幕・締めの絵として使う。
+ */
+export type ClosingBeat = {
+  /** 終端 state を perceive() した最後の画面（描写のみ。action は促さない） */
+  perception: AIChanPerception;
+  /** 締めのひとこと（observation ＋ speech、action なし） */
+  response: ClosingResponse;
+};
+
 export type DreamTrace = {
   gameId: string;
   title: string;
@@ -71,6 +86,13 @@ export type DreamTrace = {
   turns: TraceTurn[];
   /** 再現に足る素性。常に付く（未指定フィールドは 'unknown'）。docs/12 B */
   provenance: TraceProvenance;
+  /**
+   * 公開用の冒頭フック（任意）。GameMeta.hook をループが verbatim 複写したもの。
+   * 映像フロー（docs/11）の唯一の入力は DreamTrace なので、hook もここを通して render に届く。
+   */
+  hook?: string;
+  /** 終端リアクション（任意・best-effort）。docs/09 Closing Beat */
+  closing?: ClosingBeat;
   /** endReason==='invalidAction' のときだけ付く不良 take のデバッグ素材 */
   failure?: TraceFailure;
 };

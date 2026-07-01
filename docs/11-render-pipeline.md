@@ -21,7 +21,9 @@
               ─→ (replay)     ─┘
 ```
 
-`DreamTrace` は 2 フローの**唯一の受け渡し点**。映像フローは trace 以外の内部状態に触らない。
+`DreamTrace` は 2 フローの**唯一の受け渡し点**。映像フローは trace 以外の内部状態に触らない（`GameMeta` も直接読まない。公開フックは `trace.hook` 経由で届く）。
+
+**render 入力契約**：`turns.length >= 1` を要求する。`turns` が空で `closing`/`hook` だけの trace は不良品として**描画前に破棄**する（praise-room は `init` が常に affordances を持つので `turns >= 1` が保証される）。`hook`（開幕）と `closing`（締め）はどちらも任意で、`turns` の前後に足す装飾フレーム。
 
 ---
 
@@ -76,6 +78,9 @@
 
 - **座標を持たない要素をどう置くか**：`elements[].ref` で同一性は保証される（ターンをまたいで同じ ref＝同じ対象）。配置は**演出側の決定**（例：ref を安定ハッシュ→定位置、salience→サイズ/不透明度）。ゲームの座標を再導入しない。
 - **立ち絵の表情**は `closure`（opening/unfolding/closing）と直前 `feedback.valence` から選ぶ。専用の感情フィールドは perception に足さない（境界を太らせない）。
+- **開幕フックカード（0〜2s）**：`DreamTrace.hook`（＝`GameMeta.hook` の複写・docs/02/09）があれば、本編の前に**タイトルカード**として提示し「何を見る夢か」を立てる。これは**字幕ではない**（字幕トラックは `speech` のみ・原則#5）。render 側で LLM を呼ばず、trace の hook をそのまま出すだけ。hook 自体はメカ語・技術語を含まない前提（docs/02 の `assertNoRawMechanicsText` ゲート）。
+- **締めビート（Closing Beat）**：`DreamTrace.closing`（docs/09）があれば、`turns` の最後の後にもう 1 フレーム描く。情景は `closing.perception`、字幕は `closing.response.speech`。**終端グロス（閉じた/手詰まり/醒めた）は全面オーバーレイにせず**、小さなピルで出して**締めの字幕を覆わない**。内部 enum（`closure`/`endReason`）は公開面に生表示せず日本語グロスにする（#5）。
+- **内部語を出さない**：`opening`/`closing`/`terminal`/`deadend`/`maxTurns` 等の内部トークンをテキスト化しない。局面・終わり方は日本語グロスで表す（Tier A ビューアもこの規則に従う）。
 
 ---
 
@@ -111,8 +116,9 @@ interface Recorder {
 
 > 依存：尺の「型」（25秒構造・失敗の型6種）は **`docs/01-dream-design-rules.md`** を正とし、本 doc は配分の**機構**だけ定める。両者が食い違ったら *型は01・機構は11*。
 
-- 総尺 **~25s** は上限。`trace.turns.length`（＝ `maxTurns` 以下）で割る。
-- **1 ターンの表示時間は音声長で決める**（`speech` を読み上げた `AudioClip` の長さ＋余韻）。全ターン合計が 25s を超えるなら、余韻を詰める→それでも溢れるなら**末尾ではなく中盤を間引く**（opening と closing＝`closure` の端は演出上残す）。
+- 総尺 **~25s** は上限。総ビート数は `trace.turns.length + (trace.closing ? 1 : 0)`（＝各ターン ＋ 締めビート）。加えて開幕フックカード（`trace.hook` があれば 0〜2s）を頭に足す。
+- **1 ターンの表示時間は音声長で決める**（`speech` を読み上げた `AudioClip` の長さ＋余韻）。読み上げ対象のセリフ列は**各ターン `speech` ＋ 末尾に `closing.response.speech`（あれば）**。全ビート合計が 25s を超えるなら、余韻を詰める→それでも溢れるなら**末尾ではなく中盤を間引く**（opening と closing＝`closure` の端は演出上残す）。
+- 「最後の観察を静かに残す」の対象は、`closing` があれば `closing.response.speech`（夢が閉じたあとの受け止め）。無ければ最後のターンの `speech`。
 - `closure` を尺のペーサに使う：`opening` はやや溜め、`unfolding` はテンポ、`closing` は間を置いて**最後の観察を静かに残す**（`docs/00 §3-4`）。
 - `endReason`（`terminal`/`deadend`/`maxTurns`）で締めの絵を変える（受容/手詰まり/時間切れ）。`maxTurns` 打ち切りが常態化するなら perceive/isTerminal の設計ミス（`docs/09`）——尺側で誤魔化さない。
 
@@ -138,6 +144,7 @@ type ArtifactManifest = {
 ## 6. 非目標（この wave でやらないこと）
 
 - `DreamGame` 契約・`AIChanPerception`・`AgentResponse` の変更（不変条件#4）。**新しい action も perception フィールドも足さない。**
+  - 注：`DreamTrace.hook` / `DreamTrace.closing` は core/agent-loop wave（docs/09・02）で追加済みの **additive な trace フィールド**であり、映像 wave はそれを**読むだけ**。映像側で hook/closing を生成したり LLM を呼んだりはしない。
 - trace に `RawState` を積むこと（原則#4。リッチ描画はリプレイで再生する）。
 - 画面に HUD 数値・スコア・座標・残り秒を出すこと（不変条件#1,#5）。
 - LLM を映像側から呼ぶこと（映像は trace の消費者。生成はプレイフローで完結済み）。

@@ -9,8 +9,8 @@
  * セリフの質は本物の LLM が担う。ここは決定論の足場。
  */
 
-import type { AgentResponse } from '../agent/response-schema.js';
-import { AgentResponseSchema } from '../agent/response-schema.js';
+import type { AgentResponse, ClosingResponse } from '../agent/response-schema.js';
+import { AgentResponseSchema, ClosingResponseSchema } from '../agent/response-schema.js';
 import type { ChatMessage, LlmClient } from '../agent/types.js';
 
 /** 行動 id ごとの、眠そうで生真面目なセリフ素片 */
@@ -70,6 +70,21 @@ export function createMockLlmClient(): LlmClient {
 
       // 本物のクライアントと同じく、返す前に必ずスキーマを通す（不変条件 #3）。
       return AgentResponseSchema.parse({ observation, speech, action });
+    },
+
+    // 終端リアクション（docs/09 Closing Beat）。決定論の締めのひとこと（action なし）。
+    // 直前の出来事の質（あたたかい／こわれた／遠ざかった）を content から素朴に読んで締める。
+    async closing(messages: ChatMessage[]): Promise<ClosingResponse> {
+      const content = lastUserContent(messages);
+      let speech = 'ふぁ……ここで、おしまい、かな。……見ていた夢を、そっと閉じる。';
+      if (content.includes('あたたか') || content.includes('返って')) {
+        speech = '……よかった。あったかいまま、閉じるんだ。';
+      } else if (content.includes('遠ざか') || content.includes('冷た')) {
+        speech = '……遠く、なってく。まだ、見ていたかったけど。';
+      }
+      const observation = '夢が閉じた。最後に見えたものを、静かに言葉にした。';
+      // action は持たない。返す前に必ずスキーマを通す（不変条件 #3）。
+      return ClosingResponseSchema.parse({ observation, speech });
     },
   };
 }

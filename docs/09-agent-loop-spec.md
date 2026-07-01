@@ -54,6 +54,27 @@ type AgentResponse = {
 
 ---
 
+## Closing Beat（終端リアクション）
+
+夢が閉じたあと、AIちゃんが**結果を見て一言残す**ためのビート。これが無いと「最後の action を宣言した所」で take が切れ、視聴者が最も見たい「それで何が起きて、どう受け止めたか」が録れない（Shorts のオチが消える）。
+
+- 通常ターンと違い **action を持たない**（夢はもう閉じていて選ぶものはない）。専用スキーマ `ClosingResponse` を使う：
+
+```ts
+type ClosingResponse = {
+  observation: string;   // min 1
+  speech: string;        // min 1（締めの一言。docs/00 §4 の作法）
+};
+```
+
+- 構造化強制は通常ターンと同じ（不変条件 #3）。`closingResponseJsonSchema` を structured output に載せ、返す前に `ClosingResponseSchema` で parse する。ただし `ClosingResponse` は **`.strict()` にしない**（未知キーは strip）。サーバ側構造化が効かないモデルが通常ターンの癖で余剰 `action` を付けても、剥がして `observation`/`speech` を採用し締めを成立させるため（best-effort）。`action` を混ぜて `AgentResponse` を流用しないのは、終端では `affordances` が空で「action ∈ affordances」が成立せず、trace の action 列（リプレイの素）に偽物が入るのを避けるため（#2）。
+- **`turns` には積まない**。`DreamTrace.closing`（別フィールド）に置く。`apply` を呼ばないので state 列・action 列は不変＝**リプレイ決定論に影響しない**（非決定論なのは `speech` だけで、各ターン speech と同 class）。
+- 対象 `endReason`：`terminal` / `deadend` / `maxTurns`。`invalidAction`（不良 take・描画前破棄）には**付けない**。
+- `LlmClient.closing` は**オプショナル**。未実装のクライアント（テストのインラインリテラル等）を壊さないため。ループは `typeof llm.closing === 'function'` で存在確認し、無ければ締めを省く（degrade）。
+- **best-effort**：締めの生成が失敗（NIM 障害等）しても例外を握りつぶし、成功した `turns` を活かして take を捨てない。
+
+---
+
 ## コンポーネント契約
 
 `runAgentLoop` は次の 4 つに依存する。いずれもプロバイダ非依存・差し替え可能。
@@ -68,6 +89,11 @@ interface LlmClient {
    * 返す前に AgentResponseSchema.parse を通し、形が壊れていれば throw する。
    */
   complete(messages: ChatMessage[], schema: typeof agentResponseJsonSchema): Promise<AgentResponse>;
+  /**
+   * 終端リアクション（Closing Beat）を生成する任意メソッド。observation ＋ speech（action なし）を
+   * 構造化強制で返す。オプショナル：未実装ならループが締めを省いて degrade する。
+   */
+  closing?(messages: ChatMessage[], schema: typeof closingResponseJsonSchema): Promise<ClosingResponse>;
 }
 ```
 
@@ -80,6 +106,8 @@ interface LlmClient {
 interface PromptBuilder {
   /** docs/00 §1–4（または抽出版）＋ perception を messages に組む */
   build(perception: AIChanPerception, ctx: PromptContext): ChatMessage[];
+  /** 締めビート用。行動選択を促さず「最後に見えたものを静かに一言」だけ求める。reason で締めのトーンを分ける */
+  buildClosing(perception: AIChanPerception, ctx: PromptContext, reason: 'terminal' | 'deadend' | 'maxTurns'): ChatMessage[];
 }
 ```
 
@@ -139,7 +167,7 @@ async function runAgentLoop<S, A extends string>(
 1. `s = game.init(opts.seed)`。`turn = 0`。
 2. ループ（`turn < game.meta.maxTurns` の間）：
    1. `p = game.perceive(s)`。
-   2. **終端の早期判定**：`p.affordances` が空なら → `endReason = 'deadend'` で**ループを抜ける**（手詰まり＝夢の終わり方の一型。docs/07）。最後の観察は、直前ターンまでに `closure: 'closing'` で既に語られている前提（docs/00 §3「最後の観察を静かに残す」）。LLM は呼ばない。
+   2. **終端の早期判定**：`p.affordances` が空なら → `endReason = 'deadend'` で**ループを抜ける**（手詰まり＝夢の終わり方の一型。docs/07）。**ループ内では** LLM（`llm.complete`）を呼ばない。締めの一言は、ループを抜けた後の **Closing Beat**（後述）が生成する（この `p` を最終画面として使える）。
    3. `messages = prompt.build(p, ctx)`。
    4. `r = llm.complete(messages, agentResponseJsonSchema)`。
    5. `outcome = validator.resolve(r, p.affordances, reask)`。
@@ -149,7 +177,9 @@ async function runAgentLoop<S, A extends string>(
    9. `game.isTerminal(s)` が true なら → `endReason = 'terminal'` で抜ける。
    10. `turn += 1`。
 3. ループが `turn === maxTurns` で尽きたら → `endReason = 'maxTurns'`。
-4. `DreamTrace` を返す。
+4. **Closing Beat（終端リアクション）**：`endReason` が `terminal` / `deadend` / `maxTurns` のとき（`invalidAction` は**除外**）、最後の `state` を `p_end = game.perceive(state)` で見直し、`prompt.buildClosing(p_end, ctx, endReason)` ＋ `llm.closing(...)` で**行動なしの締めの一言**（`ClosingResponse`）を作り、`DreamTrace.closing` に載せる（後述）。best-effort：`llm.closing` 未実装／生成失敗なら締めを省くだけで take は捨てない。
+5. `game.meta.hook` があれば `DreamTrace.hook` へ verbatim 複写する。
+6. `DreamTrace` を返す。
 
 **終了条件は 4 つ**：`terminal`（ゲームが閉じた）／`deadend`（affordances 空）／`maxTurns`（安全弁）／`invalidAction`（語彙外を使い切って take 失敗・#5）。
 
@@ -170,6 +200,10 @@ type DreamTrace = {
   endReason: 'terminal' | 'deadend' | 'maxTurns' | 'invalidAction';
   turns: TraceTurn[];
   provenance: TraceProvenance;   // 再現に足る素性。常に付く（未指定は 'unknown'）。docs/12 B
+  hook?: string;                 // 公開フック。game.meta.hook の verbatim 複写（docs/11 の render 入力）
+  // 終端リアクション（Closing Beat）。terminal/deadend/maxTurns で best-effort に付く。apply を呼ばず
+  // turns に積まないのでリプレイ決定論に影響しない。invalidAction では付かない。
+  closing?: { perception: AIChanPerception; response: ClosingResponse };
   // endReason==='invalidAction' のときだけ付く不良 take のデバッグ素材（描画前に捨てる）
   failure?: {
     reason: 'invalidAction';
@@ -190,15 +224,17 @@ type TraceTurn = {
 };
 ```
 
-- `turns[i].response.speech` を順に並べると**ショートのセリフ列**になる。
+- `turns[i].response.speech` を順に並べ、最後に `closing.response.speech`（あれば）を足すと**ショートのセリフ列**になる。
 - `corrected: true` を含む take は劣化候補。選定で優先的に外せる。
 - `perception` を丸ごと残すのは、後で字幕・立ち絵・演出を**再構築**するため（scene.summary / elements / closure が演出の素材）。
+- `closing` は best-effort の任意フィールド。終端 take でも欠けうる（LLM 未実装／失敗）。「最後の受け止め」の有無は take の品質差になるので、選定チェックで見る（docs/12）。
 
 ---
 
 ## 決定論と再現性
 
 - **ゲーム遷移は決定論**：同じ `seed` ＋同じ action 列 → 同じ state 列・同じ perception 列（docs/02・docs/07 の不変条件）。
+- **Closing Beat は決定論を壊さない**：締めは `apply` を呼ばず `turns` にも積まないので `trace.turns.map(t => t.action)` のリプレイに影響しない。`closing.perception` は純粋な `game.perceive(最終state)` から確定的に導かれ、非決定論なのは `closing.response.speech` だけ（各ターン speech と同 class）。`hook` は定数コピーで決定論源にならない。
 - **ループ全体は非決定論**：LLM の出力が毎回ぶれるため、`runAgentLoop` を 2 回回せば別 take になる（これが Mode B+ で複数 take を撮る前提）。
 - **provenance は決定論の対象外**：`runId`/`createdAt`/`model` 等は依存注入で、実 take では毎回変わる。core は時計/乱数を生成しないので、**未注入なら 'unknown' 定数で決定論は保たれる**。実 provenance を注入した trace を比較するときは、`provenance` を除いた play-content（`turns`/perception/state 列）で比較する（docs/12 B）。
 - **再現テストの観点**：`trace.turns.map(t => t.action)` を取り出し、`init(seed)` から `apply` で順に再生すると、`trace` と同じ state 列・perception 列が出ること（`tests/state.spec.ts`・次Wave）。LLM 部分はモックして action 列だけを与える。
@@ -209,8 +245,8 @@ type TraceTurn = {
 
 1. プロンプトに渡る perception に座標・px・秒・スコア名が**生で**入っていない（#1）。
 2. `apply` に渡る action は必ず `affordances` 内（validator が保証）。語彙は限定列挙（#2）。
-3. LLM 応答は `agentResponseJsonSchema` で構造化強制、`AgentResponseSchema.parse` を通す（#3）。
-4. `DreamGame` 契約・`AgentResponse` の形を**無断で breaking change しない**（#4。変更はこのdoc → コードの順で、人間承認）。
+3. LLM 応答は `agentResponseJsonSchema`（通常）／`closingResponseJsonSchema`（締め）で構造化強制し、`AgentResponseSchema`／`ClosingResponseSchema` の parse を通す（#3）。
+4. `DreamGame` 契約・`AgentResponse` の形を**無断で breaking change しない**（#4）。`ClosingResponse` / `DreamTrace.closing?` / `DreamTrace.hook?` / `LlmClient.closing?` / `PromptBuilder.buildClosing` はすべて additive で、既存の形は不変。変更はこのdoc → コードの順で、人間承認。
 5. `speech` にメカニクス語・技術用語が出ない（#5。docs/00 §2,§4。lint/レビューで担保）。
 
 ## 完了ゲートとの関係

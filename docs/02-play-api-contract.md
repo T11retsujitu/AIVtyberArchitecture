@@ -44,6 +44,13 @@ type GameMeta<A extends string = string> = {
   actionVocabulary: readonly A[];
   /** 25秒に収まるターン上限。ループの安全弁 */
   maxTurns: number;
+  /**
+   * 公開用の冒頭フック（任意・人間著述）。Shorts の 0〜2 秒で「何を見る夢か」を伝える一文。
+   * runAgentLoop が DreamTrace.hook へ verbatim 複写し、映像フロー（docs/11）が開幕カードに使う。
+   * **perception ではない**ので AIちゃん（LLM）には渡らない。メカニクス語・技術用語を含めない
+   * （不変条件 #1/#5・`assertNoRawMechanicsText` でゲート）。
+   */
+  hook?: string;
 };
 
 type ApplyResult<S> = {
@@ -93,6 +100,8 @@ type GameEvent = {
 
 `DreamGame` インターフェースと `GameMeta.actionVocabulary` の**意味的破壊変更**は、**3ゲーム実装後は禁止**。
 それ以前でも、変更時は全既存ゲームの `tests/state.spec.ts`（決定論テスト）を緑にしてからコミットする。
+
+**任意フィールドの追加（additive）** は破壊変更ではないが、契約面を太らせるので **doc-first ＋ 人間承認**で行う（例：`GameMeta.hook?`）。既存ゲーム・既存 `AgentResponse` を一切変えないこと、対応する doc（本 doc / docs/09 / docs/11）を先に更新することを条件に許容する。
 
 ## 完了ゲートとの関係
 

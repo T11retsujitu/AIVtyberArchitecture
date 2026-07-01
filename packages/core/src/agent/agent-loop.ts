@@ -6,9 +6,9 @@
  */
 
 import type { DreamGame } from '../play-api/contract.js';
-import { agentResponseJsonSchema } from './response-schema.js';
+import { agentResponseJsonSchema, closingResponseJsonSchema } from './response-schema.js';
 import type { ActionValidator, LlmClient, PromptBuilder, Reask } from './types.js';
-import type { DreamTrace, EndReason, TraceFailure, TraceProvenance, TraceTurn } from './trace.js';
+import type { ClosingBeat, DreamTrace, EndReason, TraceFailure, TraceProvenance, TraceTurn } from './trace.js';
 
 export type RunAgentLoopDeps = {
   llm: LlmClient;
@@ -107,6 +107,22 @@ export async function runAgentLoop<S, A extends string>(
     }
   }
 
+  // 終端リアクション（docs/09 Closing Beat）。夢が閉じたあと、最後の state を perceive し直して
+  // 「行動なしの締めのひとこと」を生成する。apply は呼ばない＝turns の action 列（リプレイの素）に
+  // 影響せず決定論は保たれる。invalidAction（不良 take）には付けない。llm.closing 未実装なら degrade。
+  // 締めは garnish なので生成失敗（NIM 障害等）でも take は捨てず closing を省くだけ（best-effort）。
+  let closing: ClosingBeat | undefined;
+  if (endReason !== 'invalidAction' && typeof llm.closing === 'function') {
+    try {
+      const finalPerception = game.perceive(state);
+      const closingMessages = prompt.buildClosing(finalPerception, ctx, endReason);
+      const response = await llm.closing(closingMessages, closingResponseJsonSchema);
+      closing = { perception: finalPerception, response };
+    } catch {
+      closing = undefined;
+    }
+  }
+
   return {
     gameId: game.meta.id,
     title: game.meta.title,
@@ -114,6 +130,9 @@ export async function runAgentLoop<S, A extends string>(
     endReason,
     turns,
     provenance: resolveProvenance(opts.provenance),
+    // 公開フックは GameMeta の定数を verbatim 複写（決定論を壊さない・docs/11 の render 入力）。
+    ...(game.meta.hook !== undefined && { hook: game.meta.hook }),
+    ...(closing && { closing }),
     ...(failure && { failure }),
   };
 }

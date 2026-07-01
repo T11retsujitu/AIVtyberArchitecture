@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 import {
   AgentResponseSchema,
   agentResponseJsonSchema,
+  ClosingResponseSchema,
+  closingResponseJsonSchema,
 } from './response-schema.js';
 
 /**
@@ -53,5 +55,30 @@ describe('AgentResponse: バリデーション挙動', () => {
       });
       expect(res.success).toBe(false);
     }
+  });
+});
+
+describe('ClosingResponse: 締めビートのスキーマ（docs/09 Closing Beat）', () => {
+  it('observation ＋ speech を受理し、action フィールドは持たない', () => {
+    const res = ClosingResponseSchema.safeParse({ observation: 'a', speech: 'b' });
+    expect(res.success).toBe(true);
+    expect(res.success && 'action' in res.data).toBe(false);
+  });
+
+  it('必須欠落・空文字は弾く（min(1)）', () => {
+    expect(ClosingResponseSchema.safeParse({ observation: 'a' }).success).toBe(false);
+    expect(ClosingResponseSchema.safeParse({ observation: '', speech: 'b' }).success).toBe(false);
+  });
+
+  it('余剰 action は strip して observation/speech だけ採用する（best-effort・非 strict）', () => {
+    // NIM 等が通常ターンの癖で action を付けても締めは成立させる（docs/09）。
+    const res = ClosingResponseSchema.safeParse({ observation: 'a', speech: 'b', action: 'go' });
+    expect(res.success).toBe(true);
+    expect(res.success && 'action' in res.data).toBe(false);
+  });
+
+  it('JSON Schema ミラーは observation/speech を required にしている', () => {
+    expect([...closingResponseJsonSchema.required].sort()).toEqual(['observation', 'speech']);
+    expect(Object.keys(closingResponseJsonSchema.properties).sort()).toEqual(['observation', 'speech']);
   });
 });

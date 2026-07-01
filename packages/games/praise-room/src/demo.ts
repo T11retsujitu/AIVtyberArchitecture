@@ -64,12 +64,15 @@ async function main(): Promise<void> {
   );
 
   console.log(`\n=== ${trace.title}（${trace.gameId}）seed=${trace.seed} ===`);
+  if (trace.hook) console.log(`（フック）${trace.hook}`);
   for (const t of trace.turns) {
     const mark = t.corrected ? ' [是正]' : '';
     console.log(`\n[${t.perception.closure}] ${t.perception.scene.summary}`);
     console.log(`  AIちゃん: ${t.response.speech}`);
     console.log(`  → ${t.action}${mark}`);
   }
+  // 終端リアクション（docs/09 Closing Beat）：夢が閉じたあとの締めの一言
+  if (trace.closing) console.log(`\n[閉じ] AIちゃん: ${trace.closing.response.speech}`);
   console.log(`\n--- 終わり方: ${trace.endReason} / ${trace.turns.length} ターン ---`);
 
   // trace を JSON で書き出す（映像フローの唯一の受け渡し点・docs/11 §0）

@@ -66,20 +66,27 @@
   .aichan .tag { position:absolute; bottom:-18px; left:50%; transform:translateX(-50%);
     font-size:10px; color:#7c828e; white-space:nowrap; }
 
-  /* 字幕（speech）。ここに出るのは speech のみ（docs/00 §4） */
+  /* 字幕（speech）。ここに出るのは speech のみ（docs/00 §4）。締めの一言も speech なのでここに出す。
+     z-index を上げ、締めビートで終端バッジに覆われないようにする（docs/11 §3） */
   .subtitle { position:absolute; left:0; right:0; bottom:0; padding:26px 8% 30px; text-align:center;
-    font-size:20px; line-height:1.5; letter-spacing:.02em;
+    font-size:20px; line-height:1.5; letter-spacing:.02em; z-index:5;
     background:linear-gradient(180deg, transparent, rgba(0,0,0,.72) 42%); text-shadow:0 2px 10px #000; }
 
-  .closure-badge { position:absolute; top:3%; right:4%; font-size:11px; color:#8b91a0;
-    letter-spacing:.14em; text-transform:uppercase; }
+  /* 局面バッジ（日本語グロス。内部 enum の生表示はしない・不変条件#5） */
+  .closure-badge { position:absolute; top:3%; right:4%; font-size:11px; color:#8b91a0; letter-spacing:.14em; }
 
-  /* 終端カード */
-  .endcard { position:absolute; inset:0; display:none; flex-direction:column; gap:6px;
-    align-items:center; justify-content:center; background:rgba(3,4,8,.55); backdrop-filter:blur(2px); }
-  .endcard.show { display:flex; }
-  .endcard .gloss { font-size:26px; letter-spacing:.05em; }
-  .endcard .reason { font-size:12px; color:#8b91a0; letter-spacing:.12em; text-transform:uppercase; }
+  /* 開幕フックカード（0〜2s の問い・docs/11 §3）。字幕ではなくタイトルカード。 */
+  .hookcard { position:absolute; inset:0; z-index:8; display:none; align-items:center; justify-content:center;
+    text-align:center; padding:0 10%; background:radial-gradient(120% 90% at 50% 40%, rgba(10,12,20,.86), rgba(3,4,8,.96));
+    font-size:24px; line-height:1.6; letter-spacing:.02em; color:#f2e9db; text-shadow:0 2px 14px #000;
+    cursor:pointer; transition:opacity 500ms; }
+  .hookcard.show { display:flex; }
+
+  /* 終端グロス：全面オーバーレイにはしない（締めの字幕を覆わない）。上部中央の小さなピル。 */
+  .endgloss { position:absolute; top:6.5%; left:50%; transform:translateX(-50%); z-index:4; display:none;
+    padding:4px 14px; border-radius:999px; background:rgba(3,4,8,.5); border:1px solid rgba(255,255,255,.08);
+    font-size:14px; letter-spacing:.08em; color:#d6dae2; }
+  .endgloss.show { display:block; }
 
   /* 開発用コントロール（動画の表側ではない） */
   .controls { display:flex; flex-wrap:wrap; gap:8px; align-items:center; justify-content:center;
@@ -106,7 +113,8 @@
     </div>
     <div class="subtitle" id="subtitle"></div>
     <div class="closure-badge" id="closureBadge"></div>
-    <div class="endcard" id="endcard"><div class="gloss" id="endGloss"></div><div class="reason" id="endReason"></div></div>
+    <div class="endgloss" id="endGloss"></div>
+    <div class="hookcard" id="hookcard"></div>
     <div id="drop-hint">DreamTrace の <b>.json</b> をここにドラッグ&ドロップ<br />（または下の「読み込み」／ URL に <code>?src=</code>）<br /><br />生成：<code>node packages/games/praise-room/dist/demo.js 42</code></div>
   </div>
 
@@ -127,15 +135,22 @@
 <script>
 const VALENCE = { good:'--amber', bad:'--bad', strange:'--strange', neutral:'--neutral' };
 const CLOSURE = { opening:'opening', unfolding:'unfolding', closing:'closing' };
-const END_GLOSS = { terminal:'閉じた', deadend:'手詰まり', maxTurns:'醒めた' };
+// 内部 enum は公開面に生表示しない（不変条件#5）。日本語グロスだけを出す。
+const CLOSURE_GLOSS = { opening:'はじまり', unfolding:'ひらいている', closing:'閉じかけ' };
+const END_GLOSS = { terminal:'閉じた', deadend:'手詰まり', maxTurns:'醒めた', invalidAction:'—' };
+const HOOK_MS = 2000; // 開幕フックカードの表示時間（0〜2s・docs/11 §3）
 
 const el = (id) => document.getElementById(id);
 const stage=el('stage'), scene=el('scene'), summary=el('summary'), subtitle=el('subtitle'),
       flash=el('flash'), aichan=el('aichan'), closureBadge=el('closureBadge'),
-      endcard=el('endcard'), endGloss=el('endGloss'), endReasonEl=el('endReason'),
+      endGloss=el('endGloss'), hookcard=el('hookcard'),
       scrub=el('scrub'), counter=el('counter'), titleEl=el('title'), dropHint=el('drop-hint');
 
 let trace=null, idx=0, playing=false, timer=null;
+
+// 総フレーム数＝ターン数 ＋ 締めビート（closing があれば +1・docs/11 §5）
+function frameCount(){ return trace ? trace.turns.length + (trace.closing ? 1 : 0) : 0; }
+function isClosingFrame(i){ return !!(trace && trace.closing && i === trace.turns.length); }
 
 // ref → 定位置（決定論。座標は演出側が決める・ゲーム座標は再導入しない）
 function hash(s){ let h=2166136261; for(let i=0;i<s.length;i++){ h^=s.charCodeAt(i); h=Math.imul(h,16777619);} return h>>>0; }
@@ -145,14 +160,19 @@ function css(v){ return getComputedStyle(document.documentElement).getPropertyVa
 
 function renderTurn(i){
   if(!trace) return;
-  i = Math.max(0, Math.min(i, trace.turns.length-1));
+  i = Math.max(0, Math.min(i, frameCount()-1));
   idx = i;
-  const t = trace.turns[i];
-  const p = t.perception;
 
-  stage.className = CLOSURE[p.closure] || 'opening';
-  aichan.className = 'aichan ' + (p.closure==='closing' ? 'closing' : 'sleepy');
-  closureBadge.textContent = p.closure;
+  const closingFrame = isClosingFrame(i);
+  // 締めビートは trace.closing、通常ターンは trace.turns[i]（どちらも perception + speech を持つ）
+  const p = closingFrame ? trace.closing.perception : trace.turns[i].perception;
+  const speech = closingFrame ? (trace.closing.response?.speech ?? '') : (trace.turns[i].response?.speech ?? '');
+  // 締めフレームは強制的に「閉じ」の絵。通常は perception.closure に従う。
+  const closureKey = closingFrame ? 'closing' : p.closure;
+
+  stage.className = CLOSURE[closureKey] || 'opening';
+  aichan.className = 'aichan ' + (closureKey==='closing' ? 'closing' : 'sleepy');
+  closureBadge.textContent = closingFrame ? '閉じた' : (CLOSURE_GLOSS[p.closure] || '');
   summary.textContent = p.scene.summary;
 
   // 要素
@@ -167,8 +187,8 @@ function renderTurn(i){
     scene.appendChild(d);
   }
 
-  // 字幕（speech のみ）
-  subtitle.textContent = t.response?.speech ?? '';
+  // 字幕（speech のみ。締めの一言もここに出す）
+  subtitle.textContent = speech;
 
   // フィードバックのパルス（valence を色で）
   const fb = p.feedback && p.feedback[p.feedback.length-1];
@@ -177,42 +197,55 @@ function renderTurn(i){
     flash.classList.remove('pulse'); void flash.offsetWidth; flash.classList.add('pulse');
   }
 
-  // 終端カード（最後のターンのみ）
-  const last = i === trace.turns.length-1;
-  endcard.classList.toggle('show', last);
-  if(last){ endGloss.textContent = END_GLOSS[trace.endReason]||trace.endReason; endReasonEl.textContent = trace.endReason; }
+  // 終端グロス（日本語のみ・生 endReason は出さない）。締めビートがある場合は締めフレーム、
+  // 無い場合は最後のターンに、上部の非オーバーレイのピルで出す（字幕を覆わない）。
+  const showEnd = trace.closing ? closingFrame : (i === trace.turns.length-1);
+  endGloss.classList.toggle('show', showEnd);
+  if(showEnd) endGloss.textContent = END_GLOSS[trace.endReason] || '';
 
   scrub.value = i;
-  counter.textContent = (i+1)+' / '+trace.turns.length;
+  counter.textContent = (i+1)+' / '+frameCount();
 }
 
-function step(delta){ pause(); renderTurn(idx+delta); }
+function step(delta){ pause(); hideHook(); renderTurn(idx+delta); }
 function play(){
   if(!trace) return;
-  if(idx >= trace.turns.length-1) renderTurn(0);
+  if(idx >= frameCount()-1) renderTurn(0);
   playing=true; el('play').textContent='⏸ 停止';
-  const tick=()=>{
-    if(!playing) return;
-    if(idx >= trace.turns.length-1){ pause(); return; }
-    renderTurn(idx+1);
+  const begin=()=>{
+    const tick=()=>{
+      if(!playing) return;
+      if(idx >= frameCount()-1){ pause(); return; }
+      renderTurn(idx+1);
+      timer=setTimeout(tick, Number(el('dur').value)||2500);
+    };
     timer=setTimeout(tick, Number(el('dur').value)||2500);
   };
-  timer=setTimeout(tick, Number(el('dur').value)||2500);
+  // 開幕フックカードを 0〜2s 出してから本編へ（idx 0 から再生するときだけ）
+  if(idx===0 && trace.hook){ showHook(); timer=setTimeout(()=>{ hideHook(); begin(); }, HOOK_MS); }
+  else { hideHook(); begin(); }
 }
 function pause(){ playing=false; clearTimeout(timer); el('play').textContent='▶ 再生'; }
 
+function showHook(){ if(trace && trace.hook){ hookcard.textContent = trace.hook; hookcard.classList.add('show'); } }
+function hideHook(){ hookcard.classList.remove('show'); }
+
 function loadTrace(obj){
   if(!obj || !Array.isArray(obj.turns) || obj.turns.length===0){ alert('DreamTrace として読めません（turns が空）'); return; }
-  trace=obj; idx=0; scrub.max=obj.turns.length-1; dropHint.style.display='none';
-  titleEl.textContent = `${obj.title ?? ''}（${obj.gameId ?? '?'}）seed=${obj.seed ?? '?'} — ${obj.turns.length}ターン / ${obj.endReason}`;
+  trace=obj; idx=0; scrub.max=frameCount()-1; dropHint.style.display='none';
+  const closeCount = obj.closing ? '＋締め' : '';
+  titleEl.textContent = `${obj.title ?? ''}（${obj.gameId ?? '?'}）seed=${obj.seed ?? '?'} — ${obj.turns.length}ターン${closeCount} / ${END_GLOSS[obj.endReason] ?? ''}`;
   renderTurn(0);
+  // 読み込み直後に開幕フックカードを提示（クリックで閉じる）。
+  if(obj.hook) showHook();
 }
 
 // 読み込み経路：?src= / ファイル選択 / ドラッグ&ドロップ
 el('prev').onclick=()=>step(-1);
 el('next').onclick=()=>step(1);
 el('play').onclick=()=>playing?pause():play();
-scrub.oninput=()=>{ pause(); renderTurn(Number(scrub.value)); };
+hookcard.onclick=()=>hideHook();
+scrub.oninput=()=>{ pause(); hideHook(); renderTurn(Number(scrub.value)); };
 el('loadBtn').onclick=()=>el('file').click();
 el('file').onchange=(e)=>{ const f=e.target.files[0]; if(f) f.text().then(x=>loadTrace(JSON.parse(x))).catch(()=>alert('JSON 解析に失敗')); };
 ['dragover','drop'].forEach(ev=>document.addEventListener(ev,e=>e.preventDefault()));

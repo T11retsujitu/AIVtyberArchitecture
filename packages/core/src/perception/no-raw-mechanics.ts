@@ -55,27 +55,41 @@ export type RawMechanicViolation = {
   match: string;
 };
 
-/** perceive() 出力に生メカニクス数値が混入していないか走査する。違反の配列を返す */
-export function findRawMechanics(p: AIChanPerception): RawMechanicViolation[] {
+/** 1 本の描写文字列を走査して違反の配列を返す（perception 版・hook 版が共有する核） */
+export function findRawMechanicsInText(text: string): RawMechanicViolation[] {
   const violations: RawMechanicViolation[] = [];
-  for (const text of describedStrings(p)) {
-    for (const { name, re } of RAW_MECHANIC_PATTERNS) {
-      const m = re.exec(text);
-      if (m) violations.push({ pattern: name, text, match: m[0] });
-    }
+  for (const { name, re } of RAW_MECHANIC_PATTERNS) {
+    const m = re.exec(text);
+    if (m) violations.push({ pattern: name, text, match: m[0] });
   }
   return violations;
+}
+
+/** perceive() 出力に生メカニクス数値が混入していないか走査する。違反の配列を返す */
+export function findRawMechanics(p: AIChanPerception): RawMechanicViolation[] {
+  return describedStrings(p).flatMap(findRawMechanicsInText);
+}
+
+/** 違反リストを docs/07 案内つきの例外文言に整形する（共通） */
+function violationError(violations: RawMechanicViolation[], where: string): Error {
+  const detail = violations
+    .map((v) => `  [${v.pattern}] "${v.match}" in: ${JSON.stringify(v.text)}`)
+    .join('\n');
+  return new Error(`不変条件 #1 違反：${where}に生のメカニクス数値が混入しています（docs/07）。\n${detail}`);
 }
 
 /** 違反があれば例外を投げる。各ゲームの perception テストの最終ゲートに使う */
 export function assertNoRawMechanics(p: AIChanPerception): void {
   const violations = findRawMechanics(p);
-  if (violations.length > 0) {
-    const detail = violations
-      .map((v) => `  [${v.pattern}] "${v.match}" in: ${JSON.stringify(v.text)}`)
-      .join('\n');
-    throw new Error(
-      `不変条件 #1 違反：perceive() 出力に生のメカニクス数値が混入しています（docs/07）。\n${detail}`,
-    );
-  }
+  if (violations.length > 0) throw violationError(violations, 'perceive() 出力');
+}
+
+/**
+ * 単一テキスト（GameMeta.hook 等・表側の公開文言）に生メカニクス数値が無いかの機械ゲート。
+ * 注意：これは数値パターンのみを弾く安全網で、RAG/LLM/トークン等の技術語や日本語のメカ語まで
+ * 網羅はしない（#5 の技術語はオーサリング＋レビューで担保・docs/00）。
+ */
+export function assertNoRawMechanicsText(text: string, label = '公開文言'): void {
+  const violations = findRawMechanicsInText(text);
+  if (violations.length > 0) throw violationError(violations, label);
 }

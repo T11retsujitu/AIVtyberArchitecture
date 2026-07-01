@@ -21,6 +21,8 @@ export const praiseRoom: DreamGame<PraiseRoomState, PraiseRoomAction> = {
     title: 'ほめ部屋',
     actionVocabulary: PRAISE_ROOM_ACTIONS,
     maxTurns: MAX_TURNS,
+    // 公開用の冒頭フック（0〜2秒の問い・docs/11）。メカニクス語なし（assertNoRawMechanicsText でガード）。
+    hook: '褒めてくる光を、AIちゃんは受け入れられるのか。',
   },
 
   init(seed: number): PraiseRoomState {

@@ -21,7 +21,9 @@ export type {
 // 不変条件 #1 の機械的ガード（perceive() への生メカニクス数値混入検出・docs/07）
 export {
   findRawMechanics,
+  findRawMechanicsInText,
   assertNoRawMechanics,
+  assertNoRawMechanicsText,
   RAW_MECHANIC_PATTERNS,
   type RawMechanicViolation,
 } from './perception/no-raw-mechanics.js';
@@ -41,6 +43,9 @@ export {
   AgentResponseSchema,
   agentResponseJsonSchema,
   type AgentResponse,
+  ClosingResponseSchema,
+  closingResponseJsonSchema,
+  type ClosingResponse,
 } from './agent/response-schema.js';
 
 // Agent ループ（docs/09）
@@ -54,10 +59,11 @@ export type {
   PromptContext,
   ActionValidator,
   ChatMessage,
+  ClosingReason,
   Reask,
   ResolveOutcome,
 } from './agent/types.js';
-export type { DreamTrace, TraceTurn, TraceFailure, TraceProvenance, EndReason } from './agent/trace.js';
+export type { DreamTrace, TraceTurn, TraceFailure, TraceProvenance, EndReason, ClosingBeat } from './agent/trace.js';
 
 // LLM プロバイダ実装（NVIDIA NIM・docs/13）。鍵/URL の局所化点。
 export { createNimLlmClient } from './agent/llm/nim-client.js';
